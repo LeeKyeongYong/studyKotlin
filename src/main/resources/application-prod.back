@@ -1,0 +1,26 @@
+spring:
+  h2:
+    console:
+      enabled: false
+custom:
+  datasource:
+    source:
+      driver-class-name: org.postgresql.Driver
+      jdbc-url: jdbc:postgresql://localhost:5432/surl
+      username: root
+      password: lldj123414
+      auto-commit: false
+    replica1:
+      driver-class-name: org.postgresql.Driver
+      jdbc-url: jdbc:postgresql://localhost:5433/surl
+      username: root
+      password: lldj123414
+      auto-commit: false
+      read-only: true
+    replica2:
+      driver-class-name: org.postgresql.Driver
+      jdbc-url: jdbc:postgresql://localhost:5435/surl
+      username: root
+      password: lldj123414
+      auto-commit: false
+      read-only: true
