@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="ko">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.6.1/sockjs.min.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- moment.js -->
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/moment"></script>
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/chartjs-adapter-moment"></script>
+
+
+    <link th:href="@{/static/resource/global/toastr.css}" rel="stylesheet">
+    <link rel="stylesheet" th:href="@{/static/resource/global/trade-service.css(v=${@resourceVersioning})}"/>
+    <script type="application/javascript" th:src="@{/static/resource/global/js/trade-service.js}"></script>
+    <script type="application/javascript" th:src="@{/static/resource/global/js/trade-service.js}"></script>
+    <script type="application/javascript" src="/static/resource/global/global.js"></script>
+
+
+    <!-- Toast Grid -->
+<!--    <script type="text/javascript" th:src="@{/static/resource/global/vendors/toast/tui-code-snippet/dist/tui-code-snippet.js}"></script>-->
+<!--    <script type="text/javascript" th:src="@{/static/resource/global/vendors/toast/tui-pagination/dist/tui-pagination.js}"></script>-->
+<!--    <script type="text/javascript" th:src="@{/static/resource/global/vendors/toast/tui-date-picker/dist/tui-date-picker.min.js}"></script>-->
+<!--    <script type="text/javascript" th:src="@{/static/resource/global/vendors/toast/tui-time-picker/dist/tui-time-picker.min.js}"></script>-->
+<!--    <script type="text/javascript" th:src="@{/static/resource/global/vendors/toast/tui-grid/dist/tui-grid.js}"></script>-->
+
+    <!-- Sweet Alert 2 -->
+<!--    <script th:src="@{/static/resource/global/vendors/sweetalert2/dist/sweetalert2.all.min.js}"></script>-->
+
+    <!-- AmCharts -->
+    <script type="text/javascript" th:src="@{/static/resource/global/vendors/amcharts4/core.js}"></script>
+    <script type="text/javascript" th:src="@{/static/resource/global/vendors/amcharts4/charts.js}"></script>
+    <script type="text/javascript" th:src="@{/static/resource/global/vendors/amcharts4/themes/material.js}"></script>
+    <script type="text/javascript" th:src="@{/static/resource/global/vendors/amcharts4/themes/animated.js}"></script>
+
+
+    <meta name="_csrf" th:content="${_csrf.token}"/>
+    <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
+
+    <script type="text/javascript">
+        const urlParams = getUrlParams(location.href);
+    </script>
+</head>
+<body>
+
+<th:block layout:fragment="header"></th:block>
+
+<th:block layout:fragment="content"></th:block>
+
+<script type="text/javascript">
+    // history.back 에 의해서 돌아온 경우에 자바스크립트가 실행이 안될 수 도 잇다.
+    // $(window).bind("pageshow", function (event) {}); 를 사용하면 해결이 된다.
+    $(window).bind("pageshow", function (event) {
+        if (sessionStorage.getItem("historyBackFailMsg")) {
+            toastWarning(sessionStorage.getItem("historyBackFailMsg"));
+            sessionStorage.removeItem("historyBackFailMsg");
+        }
+    });
+
+    if (urlParams.msg) {
+        toastNotice(urlParams.msg);
+    }
+
+    if (urlParams.failMsg) {
+        toastWarning(urlParams.failMsg);
+    }
+</script>
+
+</body>
+</html>

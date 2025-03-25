@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="ko" layout:decorate="~{global/layout}">
+<head>
+    <title layout:title-pattern="$CONTENT_TITLE - $LAYOUT_TITLE admin" th:text="${@appConfig.siteName}"></title>
+</head>
+<body>
+    <header layout:fragment="header">
+        <h1 th:text="|${@appConfig.siteName} 관리자|"></h1>
+        <a href="/">홈</a>
+        <a th:if="${@reqData.login}" href="/messages">보낸메세지 함</a>
+        <a th:if="${@reqData.login}" href="/messages/writerForm">받은메세지 함 X0</a>
+        <a th:if="${@reqData.admin}" href="/mymail/sendForm">메일발송</a>
+        <a th:if="${@reqData.login}" href="/mymail/verifyCode">메일인증발송</a>
+        <a th:if="${@reqData.admin}" href="/uploadPdf">pdf 보기</a>
+        <a th:if="${@reqData.admin}" href="#">카프카연계 연습 이해 완료(내용없음)</a>
+        <a th:if="${@reqData.admin}" href="/payments/list">관리자 결제페이지보기</a>
+        <a th:if="${@reqData.login}" href="/member/logout">로그아웃</a>
+        <a th:if="${@reqData.admin}" href="/adm/member/list">사용자리스트</a>
+
+
+        <br/>
+        <a th:if="${@reqData.login}" href="/weather">날씨보기</a>
+        <a th:if="${@reqData.login}" href="/chat/rooms/mygpt">ai대화하기</a>
+        <a th:if="${@reqData.login}" href="/trade/service">거래소</a>
+        <a th:if="${@reqData.login}" href="/monitoring">메모리/cpu보기</a>
+        <a th:if="${@reqData.admin}" href="#">대시보드</a>
+        <br/>
+        <a th:if="${@reqData.login}" href="#">전체검색</a>
+        <a th:if="${@reqData.admin}" href="#">크롤링보기</a>
+        <a th:if="${@reqData.admin}" href="#">주소록 보기</a>
+        <a th:if="${@reqData.login}" href="#">spark Basic(진행중)</a>
+    </header>
+</body>
+</html>

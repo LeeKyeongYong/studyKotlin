@@ -1,0 +1,316 @@
+<html layout:decorate="~{global/usrLayout}">
+<head>
+
+    <style>
+        .chat-room-list {
+            width: 100%;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .chat-room-item {
+            display: flex;
+            align-items: center;
+            padding: 1rem;
+            margin-bottom: 0.5rem;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s;
+        }
+        .chat-room-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .room-number {
+            background-color: #4a5568;
+            color: white;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.875rem;
+            margin-right: 1rem;
+        }
+        .room-title {
+            flex-grow: 1;
+            font-weight: 500;
+            color: #2d3748;
+            text-decoration: none;
+        }
+        .room-title:hover {
+            color: #4299e1;
+        }
+        .room-info {
+            color: #718096;
+            font-size: 0.875rem;
+            margin-left: 1rem;
+        }
+        .create-room-form {
+            background-color: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            margin-bottom: 2rem;
+        }
+        .create-room-input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            margin-right: 1rem;
+        }
+        .create-room-button {
+            padding: 0.75rem 1.5rem;
+            background-color: #4299e1;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .create-room-button:hover {
+            background-color: #3182ce;
+        }
+
+        .chat-room-item button.delete-room-button {
+            margin-left: 12px; /* 왼쪽 여백 추가 */
+            padding: 6px 12px; /* 버튼 크기 확대 */
+            background-color: #e53e3e; /* 버튼 배경색 */
+            color: white; /* 텍스트 색상 */
+            border: none;
+            border-radius: 6px; /* 둥근 모서리 */
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .chat-room-item button.delete-room-button:hover {
+            background-color: #c53030; /* 호버 시 어두운 색상 */
+        }
+
+    </style>
+
+    <script>
+
+        function renderChatRooms(chatRooms) {
+            const chatRoomList = document.getElementById("chat-room-list");
+            chatRoomList.innerHTML = chatRooms.map((chatRoom, index) => {
+                const isAuthor = chatRoom.authorId && window.currentUserId &&
+                    chatRoom.authorId.toString() === window.currentUserId.toString();
+                return `
+            <li class="chat-room-item">
+                <span class="room-number">${index + 1} 번방</span>
+                <a href="/chat/rooms/${chatRoom.id}" class="room-title">${chatRoom.roomName}</a>
+                <span class="room-info">
+                    ${chatRoom.authorName ? `${chatRoom.authorName} (${chatRoom.authorId || '익명'})` : '익명'} ·
+                    ${dateForPrint(chatRoom.createDate)}
+                </span>
+                ${isAuthor ? `<button data-id="${chatRoom.id}" class="delete-room-button">삭제</button>` : ''}
+            </li>
+        `;
+            }).join("");
+
+            // 삭제 버튼에 이벤트 핸들러 추가
+            addDeleteRoomEventHandlers();
+        }
+
+
+        function addDeleteRoomEventHandlers() {
+            const deleteButtons = document.querySelectorAll(".delete-room-button");
+            deleteButtons.forEach(button => {
+                button.addEventListener("click", function () {
+                    const roomId = this.getAttribute("data-id");
+                    if (confirm("정말로 삭제하시겠습니까?")) {
+                        deleteChatRoom(roomId);
+                    }
+                });
+            });
+        }
+
+        function deleteChatRoom(roomId) {
+            const token = document.querySelector("meta[name='_csrf']").content;
+            const header = document.querySelector("meta[name='_csrf_header']").content;
+
+            fetch(`/api/v1/chat/rooms/${roomId}`, {
+                method: "DELETE",
+                headers: {
+                    [header]: token,
+                    Accept: "application/json",
+                },
+                credentials: "include",
+            })
+                .then((response) => {
+                    if (!response.ok) {
+                        throw new Error("삭제 권한이 없거나 삭제에 실패했습니다.");
+                    }
+                    // 응답 본문이 비어있는 경우 처리
+                    return response.text().then((text) => (text ? JSON.parse(text) : null));
+                })
+                .then(() => {
+                    toastNotice("채팅방이 삭제되었습니다.");
+                    loadChatRooms();
+                })
+                .catch((error) => {
+                    console.error("Error:", error);
+                    toastWarning(error.message);
+                });
+        }
+
+        function loadChatRooms() {
+            const token = document.querySelector("meta[name='_csrf']").content;
+            const header = document.querySelector("meta[name='_csrf_header']").content;
+
+            fetch("/api/v1/chat/rooms", {
+                method: "GET",
+                headers: {
+                    [header]: token,
+                    'Accept': 'application/json'
+                },
+                credentials: 'include'
+            })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (Array.isArray(data)) {
+                        data.reverse();
+                        renderChatRooms(data);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    toastWarning('채팅방 목록을 불러오는데 실패했습니다.');
+                });
+        }
+
+        function dateForPrint(date) {
+            if (!date) return '';
+            const now = new Date();
+            const chatDate = new Date(date);
+            const diffTime = Math.floor((now - chatDate) / 1000);
+
+            if (diffTime < 60) return "방금 전";
+            if (diffTime < 3600) return `${Math.floor(diffTime / 60)}분 전`;
+            if (diffTime < 86400) return `${Math.floor(diffTime / 3600)}시간 전`;
+
+            return chatDate.toLocaleDateString('ko-KR', {
+                year: '2-digit',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+
+        // 로그인 상태 체크 함수
+        function isLoggedIn() {
+            return !document.querySelector('a[href="/member/login"]');
+        }
+
+        function submitAddChatRoom(e) {
+            e.preventDefault();
+
+            if (!isLoggedIn()) {
+                toastWarning("로그인이 필요합니다.");
+                window.location.href = '/member/login';
+                return;
+            }
+
+            const token = document.querySelector("meta[name='_csrf']").content;
+            const header = document.querySelector("meta[name='_csrf_header']").content;
+
+            const roomNameInput = document.getElementById("chat-room-name");
+            const roomName = roomNameInput.value.trim();
+
+            if (!roomName) {
+                toastWarning("채팅방 이름을 입력해주세요.");
+                roomNameInput.focus();
+                return;
+            }
+
+            fetch("/api/v1/chat/rooms", {
+                method: "POST",
+                headers: {
+                    [header]: token,
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                credentials: 'include',
+                body: JSON.stringify({ roomName })
+            })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('채팅방 생성에 실패했습니다.');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    toastNotice("채팅방이 생성되었습니다.");
+                    roomNameInput.value = "";
+                    loadChatRooms();
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    toastWarning(error.message);
+                });
+        }
+
+        document.addEventListener("DOMContentLoaded", function() {
+            loadChatRooms();
+            setInterval(loadChatRooms, 3000);
+
+            const usernameElement = document.querySelector(".username");
+            if (usernameElement) {
+                window.currentUserId = usernameElement.getAttribute('value');
+                console.log("현재 사용자 ID:", window.currentUserId);
+            } else {
+                console.error("username 요소를 찾을 수 없습니다. 로그인 상태를 확인해주세요.");
+            }
+
+        });
+
+        $(window).bind("pageshow", function (event) {
+            if (sessionStorage.getItem("historyBackFailMsg")) {
+                toastWarning(sessionStorage.getItem("historyBackFailMsg"));
+                sessionStorage.removeItem("historyBackFailMsg");
+            }
+        });
+
+        if (urlParams.msg) {
+            toastNotice(urlParams.msg);
+        }
+
+        if (urlParams.failMsg) {
+            toastWarning(urlParams.failMsg);
+        }
+
+    </script>
+
+</head>
+<body>
+<div layout:fragment="content" class="container mx-auto p-4" style="background-color: #f7fafc;">
+    <input type="text" class="username" th:attr="value=${@reqData.getMember().userid}" style="display:none;"/>
+
+    <div class="container mx-auto p-4" style="background-color: #f7fafc;">
+        <div class="create-room-form">
+            <h1 class="font-bold text-lg mb-4">새로운 채팅방 만들기</h1>
+            <form onsubmit="submitAddChatRoom(event)" class="flex gap-2">
+                <input
+                        id="chat-room-name"
+                        type="text"
+                        placeholder="채팅방 이름을 입력하세요"
+                        class="create-room-input"
+                        autocomplete="off"
+                >
+                <button type="submit" class="create-room-button">
+                    채팅방 생성
+                </button>
+            </form>
+        </div>
+
+        <h1 class="font-bold text-lg mb-4">전체 채팅방 목록</h1>
+        <ul id="chat-room-list" class="chat-room-list"></ul>
+    </div>
+</div>
+</body>
+</html>

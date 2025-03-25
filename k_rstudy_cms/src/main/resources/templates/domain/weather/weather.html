@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html layout:decorate="~{global/msgLayout}">
+<head>
+    <title th:text="|날씨|"></title>
+    <style>
+        .weather-container {
+            max-width: 600px;
+            margin: 20px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .weather-info {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .weather-info p {
+            margin: 10px 0;
+            font-size: 16px;
+            color: #333;
+        }
+
+        .weather-info span {
+            font-weight: bold;
+            color: #2196F3;
+        }
+
+        .weather-image {
+            width: 100px;
+            height: 100px;
+            margin: 20px auto;
+            display: block;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background-color: white;
+        }
+
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .refresh-button {
+            display: block;
+            margin: 20px auto;
+            padding: 10px 20px;
+            background-color: #2196F3;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .refresh-button:hover {
+            background-color: #1976D2;
+        }
+    </style>
+    <script type="text/javascript" th:inline="javascript">
+        $(document).ready(function() {
+
+            const initialWeather = /*[[${weatherResponse}]]*/ {
+                temperature: [[${weather.temperature}]],
+                sky: [[${weather.sky}]],
+                pty: [[${weather.pty}]],
+                description: [[${weather.description}]]
+            };
+
+
+            // 초기 데이터 표시
+            if (initialWeather) {
+                updateWeatherDisplay(initialWeather);
+            }
+
+            const socket = new SockJS('/ws');
+            const stompClient = Stomp.over(socket);
+
+            function getSkyDescription(sky) {
+                switch(sky) {
+                    case 1: return '맑음';
+                    case 2: return '구름조금';
+                    case 3: return '구름많음';
+                    case 4: return '흐림';
+                    default: return '알수없음';
+                }
+            }
+
+            // 날씨 상태에 따른 아이콘 URL 매핑 함수
+            function getWeatherIconUrl(sky, pty) {
+                const baseUrl = "https://openweathermap.org/img/wn/";
+                console.log('Sky:', sky, 'PTY:', pty); // 디버깅용
+
+                if (pty > 0) {
+                    switch(pty) {
+                        case 1: return `${baseUrl}10d@2x.png`; // 비
+                        case 2: return `${baseUrl}13d@2x.png`; // 비/눈
+                        case 3: return `${baseUrl}13d@2x.png`; // 눈
+                        case 4: return `${baseUrl}09d@2x.png`; // 소나기
+                    }
+                }
+
+                switch(parseInt(sky)) {
+                    case 1: return `${baseUrl}01d@2x.png`; // 맑음
+                    case 2: return `${baseUrl}02d@2x.png`; // 구름조금
+                    case 3: return `${baseUrl}03d@2x.png`; // 구름많음
+                    case 4: return `${baseUrl}04d@2x.png`; // 흐림
+                    default:
+                        console.log('Using default icon for sky value:', sky);
+                        return `${baseUrl}50d@2x.png`; // 기본값
+                }
+            }
+
+            setTimeout(() => {
+                stompClient.connect({}, function(frame) {
+                    console.log('WebSocket Connected: ' + frame);
+
+                    stompClient.subscribe('/topic/weather', function(response) {
+                        console.log('날씨 데이터 수신:', response.body);
+                        const weatherData = JSON.parse(response.body);
+                        updateWeatherDisplay(weatherData);
+                    });
+
+                    // 첫 웹소켓 요청
+                    requestWeatherUpdate();
+                }, function(error) {
+                    console.error('WebSocket 연결 실패:', error);
+                });
+            }, 1000); // 1초 후에 웹소켓 연결 시작
+
+            function requestWeatherUpdate() {
+                console.log("날씨 업데이트 요청");
+                stompClient.send("/app/weather", {},
+                    JSON.stringify({
+                        x: 59,
+                        y: 125
+                    })
+                );
+            }
+
+            function updateWeatherDisplay(weatherData) {
+                console.log('Updating display with:', weatherData); // 디버깅용
+
+                $('#temperature').text(weatherData.temperature);
+                $('#sky').text(getSkyDescription(weatherData.sky));
+                $('#description').text(weatherData.description);
+
+                const iconUrl = getWeatherIconUrl(parseInt(weatherData.sky), parseInt(weatherData.pty));
+                console.log('Icon URL:', iconUrl); // 디버깅용
+
+                $('#weather-image').attr('src', iconUrl);
+            }
+
+            // 수동 새로고침 버튼 이벤트 핸들러
+            $('#refresh-weather').click(function() {
+                requestWeatherUpdate();
+            });
+
+            // 30초마다 업데이트
+            setTimeout(() => {
+                setInterval(requestWeatherUpdate, 60000);
+            }, 60000); // 첫 자동 업데이트는 1분 후부터 시작
+        });
+    </script>
+</head>
+<body>
+<div layout:fragment="content">
+    <div class="weather-container">
+        <h1>실시간 날씨 정보</h1>
+        <div class="weather-info">
+            <p>온도: <span th:text="${weather.temperature}">N/A</span>°C</p>
+            <p>하늘상태: <span th:text="${(weather.sky == 1 ? '맑음' :
+              weather.sky == 2 ? '구름조금' :
+              weather.sky == 3 ? '구름많음' :
+              weather.sky == 4 ? '흐림' : '알수없음') }">N/A</span></p>
+            <p>날씨설명: <span th:text="${weather.description}">N/A</span></p>
+        </div>
+        <img id="weather-image" class="weather-image"
+             th:src="${'https://openweathermap.org/img/wn/' + (weather.sky == 1 ? '01' :
+              weather.sky == 2 ? '02' :
+              weather.sky == 3 ? '03' :
+              weather.sky == 4 ? '04' : '50') + 'd@2x.png'}"
+             alt="날씨 이미지">
+        <button id="refresh-weather" class="refresh-button">날씨 새로고침</button>
+    </div>
+</div>
+</body>
+</html>

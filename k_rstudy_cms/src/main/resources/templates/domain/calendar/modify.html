@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html layout:decorate="~{global/usrLayout}">
+
+<head>
+    <title>글 수정</title>
+    <script>
+        document.addEventListener('DOMContentLoaded', async function () {
+            const id = new URLSearchParams(window.location.search).get('id');
+            const csrfToken = document.querySelector('meta[name="_csrf"]').getAttribute('content');
+            const csrfHeader = document.querySelector('meta[name="_csrf_header"]').getAttribute('content');
+
+            // DOM 접근을 반복하지 않기 위해 요소를 한 번만 가져옵니다.
+            const idField = document.getElementById('id');
+            const titleField = document.getElementById('title');
+            const startDayField = document.getElementById('startDay');
+            const endDayField = document.getElementById('endDay');
+            const bodyField = document.getElementById('body');
+            const fcolorField = document.getElementById('fcolor');
+            const editButton = document.getElementById('editButton');
+            const userData = document.getElementById('userData');
+
+            try {
+                // 이벤트 세부정보를 가져옵니다.
+                const response = await fetch(`/v1/scalendar/${id}`);
+                if (!response.ok) {
+                    throw new Error('이벤트를 찾을 수 없습니다.');
+                }
+
+                const event = await response.json();
+
+                // 폼에 이벤트 데이터를 채웁니다.
+                idField.value = event.id;
+                titleField.value = event.title;
+                startDayField.value = event.startDay;
+                endDayField.value = event.endDay;
+                bodyField.value = event.body;
+                fcolorField.value = event.fcolor;
+
+                // 현재 사용자가 작성자인 경우 수정 버튼을 표시합니다.
+                const currentUser = userData.textContent || userData.innerText;
+                if (event.author.userid === currentUser) {
+                    editButton.style.display = 'inline';
+                }
+
+                // 저장 버튼의 이벤트 리스너
+                const saveEvent = async () => {
+                    const updatedEvent = {
+                        id: idField.value,
+                        title: titleField.value,
+                        startDay: startDayField.value,
+                        endDay: endDayField.value,
+                        body: bodyField.value,
+                        fcolor: fcolorField.value
+                    };
+
+                    try {
+                        const updateResponse = await fetch(`/v1/scalendar/${updatedEvent.id}`, {
+                            method: 'PUT',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                [csrfHeader]: csrfToken
+                            },
+                            body: JSON.stringify(updatedEvent)
+                        });
+
+                        if (updateResponse.ok) {
+                            alert("수정이 완료되었습니다.");
+                            window.location.href = '/calendar'; // 수정 후 리디렉션
+                        } else {
+                            throw new Error('이벤트 수정 오류');
+                        }
+                    } catch (error) {
+                        console.error('오류:', error);
+                        alert(error.message || '예기치 않은 오류가 발생했습니다.');
+                    }
+                };
+
+                // 이벤트 핸들러를 한 번만 연결합니다.
+                editButton.addEventListener('click', saveEvent);
+
+            } catch (error) {
+                console.error('오류:', error);
+                alert(error.message || '예기치 않은 오류가 발생했습니다.');
+            }
+        });
+    </script>
+</head>
+
+<body>
+<div layout:fragment="content">
+    <h1>글 수정</h1>
+    <form id="eventForm">
+        <input type="hidden" id="id" name="id"/>
+        <label for="title">제목:</label>
+        <input type="text" id="title" name="title" required>
+
+        <label for="startDay">시작 날짜:</label>
+        <input type="date" id="startDay" name="startDay" required>
+
+        <label for="endDay">종료 날짜:</label>
+        <input type="date" id="endDay" name="endDay" required>
+
+        <label for="body">설명:</label>
+        <textarea id="body" name="body" rows="4" cols="50"></textarea>
+
+        <label for="fcolor">색상:</label>
+        <select id="fcolor" name="fcolor">
+            <option value="#000000">검정</option>
+            <option value="#FF0000">빨강</option>
+            <option value="#00FF00">초록</option>
+            <option value="#0000FF">파랑</option>
+            <!-- 필요에 따라 색상을 추가 -->
+        </select>
+
+        <button type="button" id="editButton" style="display: none;">저장</button>
+    </form>
+    <p id="userData" th:text="${@reqData.getMember().userid}" style="display: none;"></p>
+    <div>
+        <button onclick="history.back();">뒤로 가기</button>
+    </div>
+</div>
+</body>
+
+</html>

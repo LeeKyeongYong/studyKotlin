@@ -1,0 +1,193 @@
+<html layout:decorate="~{global/usrLayout}">
+<head>
+  <title>회원 상세보기</title>
+  <style type="text/css">
+    .signature-pad {
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      touch-action: none;
+    }
+    .signature-pad-buttons {
+      margin-top: 10px;
+    }
+  </style>
+  <script type="text/javascript" th:inline="javascript">
+    document.addEventListener('DOMContentLoaded', function() {
+      const canvas = document.getElementById('signaturePad');
+      const ctx = canvas.getContext('2d');
+      const clearButton = document.getElementById('clearSignature');
+      const form = document.getElementById('passwordChangeForm');
+      const signatureDataInput = document.getElementById('signatureData');
+
+      let isDrawing = false;
+      let lastX = 0;
+      let lastY = 0;
+
+      // 캔버스 초기화
+      ctx.strokeStyle = '#000';
+      ctx.lineWidth = 2;
+      ctx.lineCap = 'round';
+
+      // 마우스/터치 이벤트 핸들러
+      function startDrawing(e) {
+        isDrawing = true;
+        [lastX, lastY] = getCoordinates(e);
+      }
+
+      function draw(e) {
+        if (!isDrawing) return;
+        e.preventDefault();
+
+        const [currentX, currentY] = getCoordinates(e);
+
+        ctx.beginPath();
+        ctx.moveTo(lastX, lastY);
+        ctx.lineTo(currentX, currentY);
+        ctx.stroke();
+
+        [lastX, lastY] = [currentX, currentY];
+      }
+
+      function stopDrawing() {
+        isDrawing = false;
+      }
+
+      // 좌표 계산 함수
+      function getCoordinates(e) {
+        const rect = canvas.getBoundingClientRect();
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+
+        if (e.touches && e.touches[0]) {
+          return [
+            (e.touches[0].clientX - rect.left) * scaleX,
+            (e.touches[0].clientY - rect.top) * scaleY
+          ];
+        }
+        return [
+          (e.clientX - rect.left) * scaleX,
+          (e.clientY - rect.top) * scaleY
+        ];
+      }
+
+      // 이벤트 리스너 등록
+      canvas.addEventListener('mousedown', startDrawing);
+      canvas.addEventListener('mousemove', draw);
+      canvas.addEventListener('mouseup', stopDrawing);
+      canvas.addEventListener('mouseout', stopDrawing);
+
+      canvas.addEventListener('touchstart', startDrawing);
+      canvas.addEventListener('touchmove', draw);
+      canvas.addEventListener('touchend', stopDrawing);
+
+      // 서명 지우기
+      clearButton.addEventListener('click', function() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+      });
+
+      // 폼 제출 시 서명 데이터 저장
+      form.addEventListener('submit', function(e) {
+        signatureDataInput.value = canvas.toDataURL();
+      });
+    });
+
+    // 서명 보기 모달
+    function showSignature(signatureData) {
+      document.getElementById('signatureImage').src = signatureData;
+      const modal = new bootstrap.Modal(document.getElementById('signatureModal'));
+      modal.show();
+    }
+  </script>
+</head>
+  <body>
+      <div layout:fragment="content" class="container mt-5">
+        <h2>비밀번호 변경</h2>
+
+        <div class="card">
+          <div class="card-body">
+            <form th:action="@{/member/password/change}" method="post" id="passwordChangeForm">
+              <div class="mb-3">
+                <label for="currentPassword" class="form-label">현재 비밀번호</label>
+                <input type="password" class="form-control" id="currentPassword"
+                       name="currentPassword" required>
+              </div>
+
+              <div class="mb-3">
+                <label for="newPassword" class="form-label">새 비밀번호</label>
+                <input type="password" class="form-control" id="newPassword"
+                       name="newPassword" required>
+              </div>
+
+              <div class="mb-3">
+                <label for="changeReason" class="form-label">변경 사유</label>
+                <input type="text" class="form-control" id="changeReason"
+                       name="changeReason" required>
+              </div>
+
+              <div class="mb-3">
+                <label class="form-label">서명</label>
+                <canvas id="signaturePad" class="signature-pad" width="400" height="200"></canvas>
+                <input type="hidden" id="signatureData" name="signatureData">
+
+                <div class="signature-pad-buttons">
+                  <button type="button" class="btn btn-secondary" id="clearSignature">
+                    지우기
+                  </button>
+                </div>
+              </div>
+
+              <button type="submit" class="btn btn-primary">비밀번호 변경</button>
+            </form>
+          </div>
+        </div>
+
+        <!-- 비밀번호 변경 이력 -->
+        <div class="card mt-4">
+          <div class="card-header">
+            <h5 class="card-title">비밀번호 변경 이력</h5>
+          </div>
+          <div class="card-body">
+            <table class="table">
+              <thead>
+              <tr>
+                <th>변경일시</th>
+                <th>변경사유</th>
+                <th>서명</th>
+              </tr>
+              </thead>
+              <tbody>
+              <tr th:each="history : ${passwordHistory}">
+                <td th:text="${#temporals.format(history.changedAt, 'yyyy-MM-dd HH:mm')}"></td>
+                <td th:text="${history.changeReason}"></td>
+                <td>
+                  <button th:if="${history.signatureData != null}"
+                          type="button"
+                          class="btn btn-sm btn-info"
+                          th:onclick="'showSignature(\'' + ${history.signatureData} + '\')'">
+                    서명보기
+                  </button>
+                  <span th:unless="${history.signatureData != null}">없음</span>
+                </td>
+              </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- 서명 모달 -->
+        <div class="modal fade" id="signatureModal" tabindex="-1">
+          <div class="modal-dialog">
+            <div class="modal-content">
+              <div class="modal-header">
+                <h5 class="modal-title">서명</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+              </div>
+              <div class="modal-body">
+                <img id="signatureImage" src="" alt="서명" class="img-fluid">
+              </div>
+            </div>
+          </div>
+        </div>
+       </div>
+  </body>
+</html>

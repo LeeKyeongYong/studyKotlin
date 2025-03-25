@@ -1,0 +1,32 @@
+<html layout:decorate="~{global/usrLayout}">
+
+<head>
+    <title th:text="|글 목록|"></title>
+</head>
+
+<body>
+
+<div layout:fragment="content">
+    <h1>글 목록</h1>
+
+    <ul>
+        <li th:each="post : ${postPage.content}">
+            <a th:href="|/post/${post.id}|">
+                <span th:text="${post.id}"></span>
+                /
+                <span th:text="${post.title}"></span>
+                /
+                <span th:text="${post.likes.size}"></span>
+            </a>
+        </li>
+    </ul>
+
+    <th:block th:with="queryStrBase = ${@reqData.getCurrentQueryStringWithoutParam('page')}">
+        <th:block th:replace="global/fragments/pagination :: pagination(${postPage}, ${queryStrBase}, 1)">
+        </th:block>
+    </th:block>
+</div>
+
+</body>
+
+</html>

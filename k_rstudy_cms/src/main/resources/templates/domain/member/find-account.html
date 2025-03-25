@@ -1,0 +1,53 @@
+<html layout:decorate="~{global/usrLayout}">
+
+<head>
+    <title>아이디 찾기</title>
+
+    <script>
+        function validateForm() {
+            // 이름 필드 가져오기
+            var username = document.querySelector('input[name="username"]').value;
+
+            // 이메일 필드 가져오기
+            var userEmail = document.querySelector('input[name="userEmail"]').value;
+
+            // 이메일 유효성 검사 정규식
+            var emailPattern = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+
+            // 이름 값이 없을 경우 경고
+            if (username.trim() === "") {
+                alert("이름을 입력하세요.");
+                return false; // 폼 제출 방지
+            }
+
+            // 이메일 형식이 맞지 않을 경우 경고
+            if (!emailPattern.test(userEmail)) {
+                alert("올바른 이메일 주소를 입력하세요.");
+                return false; // 폼 제출 방지
+            }
+
+            // 모든 조건을 통과하면 폼 제출
+            return true;
+        }
+    </script>
+
+</head>
+
+<body>
+<div layout:fragment="content">
+    <h1>아이디 찾기</h1>
+
+
+    <h2>아이디 및 비밀번호 찾기</h2>
+    <form th:action="@{/member/find}" method="post" onsubmit="return validateForm();">
+        <label>이름: <input type="text" name="username" /></label><br/>
+        <label>이메일: <input type="email" name="userEmail" /></label><br/>
+        <button type="submit">찾기</button>
+    </form>
+
+    <div th:if="${message}" th:text="${message}"></div>
+
+</div>
+</body>
+
+</html>

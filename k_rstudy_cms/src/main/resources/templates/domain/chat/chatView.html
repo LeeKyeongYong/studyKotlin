@@ -1,0 +1,235 @@
+<html layout:decorate="~{global/usrLayout}">
+<head>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f7fafc;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+        }
+
+        .font-bold {
+            font-weight: bold;
+        }
+
+        .text-lg {
+            font-size: 1.5rem;
+        }
+
+        .mt-2 {
+            margin-top: 0.5rem;
+        }
+
+        .my-2 {
+            margin: 1rem 0;
+        }
+
+        .flex {
+            display: flex;
+        }
+
+        .gap-2 {
+            gap: 0.5rem;
+        }
+
+        .border {
+            border: 1px solid #ccc;
+        }
+
+        .p-2 {
+            padding: 0.5rem;
+        }
+
+        .username {
+            min-width: 100px; /* 최소 너비를 200px로 설정 */
+            font-size: 1.2rem; /* 글자 크기 증가 */
+        }
+
+        .input-field {
+            flex: 1; /* 남은 공간을 차지하도록 설정 */
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            padding: 12px; /* 패딩을 늘려서 크기 증가 */
+            font-size: 1.2rem; /* 글자 크기 증가 */
+            box-sizing: border-box;
+            min-width: 540px;
+        }
+
+        .button {
+            background-color: #4299e1;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 10px 15px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .button:hover {
+            background-color: #3182ce;
+        }
+
+        .message-list {
+            list-style-type: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .message-item {
+            padding: 10px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .message-item:last-child {
+            border-bottom: none;
+        }
+    </style>
+
+    <script>
+        const chatRoomId = 3; // 예시로 설정
+        let lastChatMessageId = 0;
+        let chatMessages = [];
+
+        // 채팅 메시지를 화면에 표시하는 함수
+        function renderChatMessages() {
+            const chatMessagesList = document.getElementById("chat-messages-list");
+            if (chatMessagesList) {
+                chatMessagesList.innerHTML = chatMessages.map(chatMessage => `
+                <li class="message-item">
+                    ${chatMessage.id} (${dateForPrint(chatMessage.createDate)}) :
+                    <strong>${chatMessage.writerName || '익명'}</strong> : ${chatMessage.content}
+                </li>
+            `).join('');
+            } else {
+                console.error("chat-messages-list 요소를 찾을 수 없습니다.");
+            }
+        }
+
+        // 날짜 포맷을 YYYY.MM.DD HH:mm 형식으로 변환하는 함수
+        function dateForPrint(date) {
+            return date.substring(2, 16).replaceAll("-", ".").replace("T", " ");
+        }
+
+        // 채팅 메시지 작성 폼 제출 함수
+        function onChatMessageFormSubmit() {
+            const contentInput = document.querySelector('input[name="content"]');
+            const content = contentInput.value.trim();
+
+            if (content.length === 0) {
+                alert("메세지를 입력해주세요.");
+                contentInput.focus();
+                return;
+            }
+
+            contentInput.value = "";
+            contentInput.focus();
+
+            fetch(`/api/v1/chat/rooms/${chatRoomId}/messages`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    writerName: document.querySelector('span[data-username]').getAttribute('data-username'),
+                    content
+                })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    console.log(`${data.id}번 메세지가 작성되었습니다.`);
+                    fetchAndRenderMessages(); // 새로운 메시지를 불러와서 갱신
+                })
+                .catch(error => {
+                    console.error('메시지 전송 실패:', error);
+                });
+        }
+
+        // 채팅 메시지 목록을 서버에서 가져와서 화면에 표시하는 함수
+        function fetchAndRenderMessages() {
+            fetch(`/api/v1/chat/rooms/${chatRoomId}/messages`)
+                .then(response => response.json())
+                .then(data => {
+                    chatMessages = data;
+                    renderChatMessages(); // 채팅 메시지 화면 갱신
+                })
+                .catch(error => {
+                    console.error('메시지 로딩 실패:', error);
+                });
+        }
+
+        // 페이지가 로드된 후에 채팅 서버와 연결
+        document.addEventListener("DOMContentLoaded", function () {
+            const socket = new SockJS('/ws');
+            const stompClient = Stomp.over(socket);
+
+            stompClient.connect({}, function (frame) {
+                console.log('Connected: ' + frame);
+
+                stompClient.subscribe(`/topic/api/v1/chat/rooms/${chatRoomId}/messageCreated`, function (data) {
+                    const jsonData = JSON.parse(data.body);
+                    chatMessages.push(jsonData.data.message); // 새 메시지 추가
+                    renderChatMessages(); // 메시지 갱신
+                });
+            });
+        });
+    </script>
+
+
+</head>
+<body>
+<div layout:fragment="content" class="container mx-auto p-4" style="background-color: #f7fafc;">
+    <h1 class="font-bold text-lg">
+        채팅방(No <span th:text="${chatRoom.id}"></span> :
+        <span th:text="${chatRoom.roomName}"></span>)
+    </h1>
+    <div class="mt-2">
+        개설날짜 : <span th:text="${#temporals.format(chatRoom.createDate, 'yy.MM.dd HH:mm')}"></span>
+    </div>
+
+    <hr class="my-2"/>
+
+    <h1 class="font-bold text-lg">채팅 메세지 작성</h1>
+
+    <div class="flex gap-2">
+        <div class="flex gap-2 flex-grow">
+        <span class="username" th:if="${@reqData != null and @reqData.getMember() != null}"
+              th:text="${@reqData.getMember().username}"
+              th:attr="data-username=${@reqData.getMember().username}"></span>
+            <span th:if="${@reqData == null or @reqData.getMember() == null}">익명</span>
+            <input
+                    class="input-field"
+                    type="text"
+                    placeholder="메세지"
+                    name="content"
+                    autocomplete="off"
+            />
+            <button
+                    class="button"
+                    onclick="onChatMessageFormSubmit()"
+            >
+                작성
+            </button>
+        </div>
+        <a href="/chat/rooms" class="button">
+            나가기
+        </a>
+    </div>
+
+    <hr class="my-2"/>
+
+    <h1 class="font-bold text-lg">채팅 메세지</h1>
+
+    <ul id="chat-messages-list" class="message-list"></ul>
+</div>
+</body>
+</html>

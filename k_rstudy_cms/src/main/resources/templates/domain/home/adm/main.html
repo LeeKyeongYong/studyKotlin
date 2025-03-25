@@ -1,0 +1,28 @@
+<html layout:decorate="~{global/admLayout}">
+
+<head>
+  <title>홈</title>
+  <style type="text/css">
+    body { font-size: 12px; }
+    .info { color: red; }
+  </style>
+</head>
+
+<body>
+
+<div layout:fragment="content">
+  <h1>관리자 홈</h1>
+  <br/>
+  <p th:if="${not #lists.isEmpty(message)}" class="info" th:text="${message}"></p>
+  <hr />
+  <ul>
+    <li th:each="member : ${members}">
+      <a th:href="@{/member/view(id=${member.id})}" th:text="${member.username}"></a>
+    </li>
+  </ul>
+  <hr />
+  <a th:href="@{/member/join}">추가</a>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,320 @@
+<html layout:decorate="~{global/admLayout}"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      xmlns:th="http://www.thymeleaf.org">
+
+<head>
+    <title>새 배너 등록</title>
+    <!-- CSRF 토큰 -->
+    <meta name="_csrf" th:content="${_csrf.token}"/>
+    <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
+
+    <!-- CSS -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+
+    <!-- JavaScript -->
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/ko.js"></script>
+    <style>
+        .drag-over {
+            background-color: rgba(59, 130, 246, 0.1);
+            border-color: #3b82f6;
+        }
+
+        .preview-container {
+            max-width: 300px;
+            margin: 0 auto;
+        }
+
+        .preview-image {
+            width: 100%;
+            height: auto;
+            object-fit: contain;
+            border-radius: 4px;
+        }
+    </style>
+    <script type="text/javascript" th:inline="javascript">
+        document.addEventListener('DOMContentLoaded', function() {
+            flatpickr.localize(flatpickr.l10ns.ko);
+
+            // Flatpickr 공통 설정
+            const flatpickrConfig = {
+                enableTime: true,
+                dateFormat: "Y-m-d H:i", // 형식 변경
+                time_24hr: true,
+                minDate: "today",
+                defaultHour: 9,
+                minuteIncrement: 30,
+                disableMobile: true
+            };
+
+            // 시작일 Flatpickr 초기화
+            const startDatePicker = flatpickr("#startDate", {
+                ...flatpickrConfig,
+                defaultDate: new Date(),
+                onChange: function(selectedDates, dateStr) {
+                    // 종료일의 최소 날짜를 시작일로 설정
+                    endDatePicker.set('minDate', dateStr);
+                }
+            });
+
+            // 종료일 Flatpickr 초기화
+            const endDatePicker = flatpickr("#endDate", {
+                ...flatpickrConfig,
+                defaultDate: (() => {
+                    const date = new Date();
+                    date.setMonth(date.getMonth() + 1);
+                    return date;
+                })()
+            });
+
+            // 이미지 업로드 관련 상수
+            const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+            const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/gif'];
+
+            // DOM 요소
+            const imageInput = document.getElementById('bannerImage');
+            const imagePreview = document.getElementById('imagePreview');
+            const dropZone = document.getElementById('dropZone');
+            const uploadPrompt = document.getElementById('uploadPrompt');
+
+            // 이미지 파일 처리 함수
+            function handleImageFile(file) {
+                if (!ALLOWED_TYPES.includes(file.type)) {
+                    alert('지원하지 않는 파일 형식입니다. JPG, PNG, GIF 파일만 업로드 가능합니다.');
+                    return false;
+                }
+
+                if (file.size > MAX_FILE_SIZE) {
+                    alert('파일 크기는 5MB를 초과할 수 없습니다.');
+                    return false;
+                }
+
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const img = imagePreview.querySelector('img');
+                    img.src = e.target.result;
+                    imagePreview.classList.remove('hidden');
+                    uploadPrompt.classList.add('hidden');
+                    dropZone.classList.add('bg-blue-50', 'border-blue-500');
+                    dropZone.classList.remove('border-gray-300');
+                }
+                reader.readAsDataURL(file);
+                return true;
+            }
+
+            // 파일 입력 이벤트
+            imageInput.addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    handleImageFile(file);
+                }
+            });
+
+            // 드래그 앤 드롭 이벤트
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                dropZone.addEventListener(eventName, preventDefaults, false);
+            });
+
+            function preventDefaults(e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+
+            // 드래그 효과
+            ['dragenter', 'dragover'].forEach(eventName => {
+                dropZone.addEventListener(eventName, function() {
+                    dropZone.classList.add('drag-over');
+                });
+            });
+
+            ['dragleave', 'drop'].forEach(eventName => {
+                dropZone.addEventListener(eventName, function() {
+                    dropZone.classList.remove('drag-over');
+                });
+            });
+
+            // 드롭 이벤트
+            dropZone.addEventListener('drop', function(e) {
+                const file = e.dataTransfer.files[0];
+                if (file) {
+                    imageInput.files = e.dataTransfer.files;
+                    handleImageFile(file);
+                }
+            });
+
+            // 클릭으로 파일 선택
+            dropZone.addEventListener('click', function() {
+                imageInput.click();
+            });
+
+            // 폼 제출
+            const form = document.getElementById('bannerForm');
+            form.addEventListener('submit', async function(e) {
+                e.preventDefault();
+
+                const formData = new FormData(this);
+
+                // 날짜 형식 변환
+                const startDate = formData.get('startDate');
+                const endDate = formData.get('endDate');
+
+                const formatDate = (dateStr) => {
+                    const date = new Date(dateStr);
+                    return date.toISOString().slice(0, 19); // "YYYY-MM-DDTHH:mm:ss" 형식으로 변환
+                };
+
+                const bannerData = {
+                    title: formData.get('title'),
+                    description: formData.get('description'),
+                    linkUrl: formData.get('linkUrl') || null,
+                    displayOrder: parseInt(formData.get('displayOrder')),
+                    startDate: formatDate(startDate),
+                    endDate: formatDate(endDate)
+                };
+
+                console.log('Banner Data:', bannerData);
+
+                const submitFormData = new FormData();
+                submitFormData.append('banner', new Blob([JSON.stringify(bannerData)], {
+                    type: 'application/json'
+                }));
+                submitFormData.append('image', formData.get('image'));
+
+                const token = document.querySelector('meta[name="_csrf"]').content;
+                const header = document.querySelector('meta[name="_csrf_header"]').content;
+
+                try {
+                    const response = await fetch('/api/banners', {
+                        method: 'POST',
+                        body: submitFormData,
+                        headers: {
+                            [header]: token
+                        }
+                    });
+
+                    console.log('Response status:', response.status);
+
+                    if (!response.ok) {
+                        const errorText = await response.text();
+                        console.error('Error response:', errorText);
+                        throw new Error(errorText || '배너 등록에 실패했습니다.');
+                    }
+
+                    const result = await response.json();
+                    console.log('Success:', result);
+
+                    alert('배너가 성공적으로 등록되었습니다.');
+                    window.location.href = '/adm/banners';
+                } catch (error) {
+                    console.error('Error:', error);
+                    alert('배너 등록 중 오류가 발생했습니다: ' + error.message);
+                }
+            });
+        });
+    </script>
+</head>
+
+<body>
+    <div layout:fragment="content" class="container mx-auto px-4 py-8">
+        <div class="max-w-2xl mx-auto">
+            <h1 class="text-2xl font-bold mb-6">새 배너 등록</h1>
+
+            <form id="bannerForm" class="bg-white shadow-md rounded px-8 pt-6 pb-8 mb-4"
+                  enctype="multipart/form-data" method="POST">
+
+                <!-- 이미지 업로드 영역 -->
+                <div class="mb-6">
+                    <label class="block text-gray-700 text-sm font-bold mb-2" for="bannerImage">
+                        배너 이미지
+                    </label>
+                    <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center transition-colors duration-200"
+                         id="dropZone">
+                        <input type="file" id="bannerImage" name="image"
+                               class="hidden" accept="image/*" required>
+                        <div id="imagePreview" class="hidden mb-4 preview-container">
+                            <img src="" alt="미리보기" class="preview-image shadow-lg">
+                        </div>
+                        <div id="uploadPrompt" class="cursor-pointer">
+                            <div class="text-gray-500">
+                                클릭하여 이미지를 선택하거나<br>
+                                이미지를 여기로 드래그하세요
+                            </div>
+                            <p class="text-sm text-gray-400 mt-2">
+                                최대 파일 크기: 5MB<br>
+                                지원 형식: JPG, PNG, GIF
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 제목 입력 -->
+                <div class="mb-4">
+                    <label class="block text-gray-700 text-sm font-bold mb-2" for="title">
+                        제목
+                    </label>
+                    <input class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                           id="title" type="text" name="title" required>
+                </div>
+
+                <!-- 설명 입력 -->
+                <div class="mb-4">
+                    <label class="block text-gray-700 text-sm font-bold mb-2" for="description">
+                        설명
+                    </label>
+                    <textarea class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                              id="description" name="description" rows="3" required></textarea>
+                </div>
+
+                <!-- 링크 URL -->
+                <div class="mb-4">
+                    <label class="block text-gray-700 text-sm font-bold mb-2" for="linkUrl">
+                        링크 URL
+                    </label>
+                    <input class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                           id="linkUrl" type="url" name="linkUrl">
+                </div>
+
+                <!-- 표시 순서 -->
+                <div class="mb-4">
+                    <label class="block text-gray-700 text-sm font-bold mb-2" for="displayOrder">
+                        표시 순서
+                    </label>
+                    <input class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                           id="displayOrder" type="number" name="displayOrder" min="1" required>
+                </div>
+
+                <!-- 게시 기간 -->
+                <div class="mb-4 grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-gray-700 text-sm font-bold mb-2" for="startDate">
+                            시작일
+                        </label>
+                        <input class="flatpickr shadow appearance-none border rounded w-full py-2 px-3 text-gray-700"
+                               id="startDate" type="text" name="startDate" placeholder="시작일 선택" required>
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 text-sm font-bold mb-2" for="endDate">
+                            종료일
+                        </label>
+                        <input class="flatpickr shadow appearance-none border rounded w-full py-2 px-3 text-gray-700"
+                               id="endDate" type="text" name="endDate" placeholder="종료일 선택" required>
+                    </div>
+                </div>
+
+                <!-- 버튼 영역 -->
+                <div class="flex items-center justify-between mt-6">
+                    <button type="submit"
+                            class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
+                        등록하기
+                    </button>
+                    <a href="/adm/banners"
+                       class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
+                        취소
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,41 @@
+<html layout:decorate="~{global/excelLayout}">
+
+<head>
+  <title>엑셀 게시글 출력</title>
+  <script>
+    function downloadExcel() {
+      var startDay = document.getElementById("startDate").value;
+      var endDay = document.getElementById("endDate").value;
+      var sheetName = document.getElementById("sheetName").value;
+      var fileName = document.getElementById("fileName").value;
+
+      var url = '/v1/excel/download/post?startDate=' + encodeURIComponent(startDay)
+              + '&endDate=' + encodeURIComponent(endDay)
+              + '&sheetName=' + encodeURIComponent(sheetName)
+              + '&fileName=' + encodeURIComponent(fileName);
+
+      window.location.href = url;
+    }
+  </script>
+</head>
+
+<body>
+
+<div layout:fragment="content">
+  <h1>엑셀 게시글 출력</h1>
+  <form onsubmit="event.preventDefault(); downloadExcel();">
+    <label for="startDate">시작 날짜:</label>
+    <input type="date" id="startDate" name="startDate" required><br><br>
+    <label for="endDate">종료 날짜:</label>
+    <input type="date" id="endDate" name="endDate" required><br><br>
+    <label for="sheetName">시트 이름:</label>
+    <input type="text" id="sheetName" name="sheetName" value="PostData"><br><br>
+    <label for="fileName">파일 이름:</label>
+    <input type="text" id="fileName" name="fileName" value="회원_게시글"><br><br>
+    <button type="submit">다운로드</button>
+  </form>
+
+</div>
+
+</body>
+</html>

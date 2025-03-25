@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="ko" layout:decorate="~{global/layout}">
+<head>
+    <title layout:title-pattern="$CONTENT_TITLE - $LAYOUT_TITLE admin" th:text="${@appConfig.siteName}"></title>
+</head>
+<body>
+    <header layout:fragment="header">
+        <h1 th:text="|${@appConfig.siteName} 관리자|"></h1>
+        <a href="/">홈</a>
+        <a href="/adm">관리자 홈</a>
+        <a href="/adm/home/about">관리자 설명</a>
+        <a href="/adm/banners">배너관리</a>
+        <a href="/adm/popups">팝업광고</a>
+        <a href="/member/logout">로그아웃</a>
+    </header>
+</body>
+</html>

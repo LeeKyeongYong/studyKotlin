@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="ko" layout:decorate="~{global/layout}">
+<head>
+    <title layout:title-pattern="$CONTENT_TITLE - $LAYOUT_TITLE admin" th:text="${@appConfig.siteName}"></title>
+</head>
+<body>
+    <header layout:fragment="header">
+        <h1 th:text="|${@appConfig.siteName} 엑셀다운로드|"></h1>
+        <a href="/">홈</a>
+        <a href="/excel">엑셀출력 메인 홈</a>
+        <a href="/excel/post">게시글 엑셀 출력</a>
+        <a href="/excel/member">사용자 엑셀 출력</a>
+        <a href="/excel/calendar">달력 엑셀 출력</a>
+        <a href="/member/logout">로그아웃</a>
+    </header>
+</body>
+</html>

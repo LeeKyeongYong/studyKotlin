@@ -1,0 +1,103 @@
+<html type="text/javascript" layout:decorate="~{global/admLayout}">
+
+<head>
+  <title>회원 이력 조회</title>
+  <script th:inline="javascript">
+    function showSignature(historyId) {
+      fetch(`/api/v1/members/signature/${historyId}`)
+              .then(response => response.blob())
+              .then(blob => {
+                const url = URL.createObjectURL(blob);
+                document.getElementById('signatureImage').src = url;
+                const modal = new bootstrap.Modal(document.getElementById('signatureModal'));
+                modal.show();
+              });
+    }
+
+    function showHistoryDetail(historyId) {
+      // 상세 정보 조회 로직 구현
+    }
+  </script>
+</head>
+
+<body>
+  <div layout:fragment="content">
+    <div class="container mt-5">
+      <h2>회원 이력 조회</h2>
+
+      <!-- 회원 정보 -->
+      <div class="card mb-4">
+        <div class="card-header">
+          <h5 class="card-title">회원 정보</h5>
+        </div>
+        <div class="card-body">
+          <div class="row">
+            <div class="col-md-6">
+              <p><strong>아이디:</strong> <span th:text="${member.userid}"></span></p>
+              <p><strong>이름:</strong> <span th:text="${member.username}"></span></p>
+              <p><strong>이메일:</strong> <span th:text="${member.userEmail}"></span></p>
+            </div>
+            <div class="col-md-6">
+              <p><strong>가입일:</strong> <span th:text="${#temporals.format(member.createDate, 'yyyy-MM-dd HH:mm')}"></span></p>
+              <p><strong>권한:</strong> <span th:text="${member.roleType}"></span></p>
+              <p><strong>상태:</strong> <span th:text="${member.useYn == 'Y' ? '사용' : '중지'}"></span></p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 비밀번호 변경 이력 -->
+      <div class="card">
+        <div class="card-header">
+          <h5 class="card-title">비밀번호 변경 이력</h5>
+        </div>
+        <div class="card-body">
+          <table class="table">
+            <thead>
+            <tr>
+              <th>변경일시</th>
+              <th>변경사유</th>
+              <th>서명</th>
+              <th>관리</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="history : ${history}">
+              <td th:text="${#temporals.format(history.changedAt, 'yyyy-MM-dd HH:mm')}"></td>
+              <td th:text="${history.changeReason}"></td>
+              <td>
+                                  <span th:if="${history.signature != null}">
+                                      <a href="#" class="btn btn-sm btn-info"
+                                         th:onclick="'showSignature(\'' + ${history.id} + '\')'">서명보기</a>
+                                  </span>
+                <span th:unless="${history.signature != null}">없음</span>
+              </td>
+              <td>
+                <button type="button" class="btn btn-sm btn-primary"
+                        th:onclick="'showHistoryDetail(\'' + ${history.id} + '\')'">상세</button>
+              </td>
+            </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- 서명 모달 -->
+    <div class="modal fade" id="signatureModal" tabindex="-1">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">서명</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <img id="signatureImage" src="" alt="서명" class="img-fluid">
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>

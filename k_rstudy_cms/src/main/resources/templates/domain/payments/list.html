@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html layout:decorate="~{global/usrLayout}">
+<head>
+    <title>결제 내역</title>
+    <style>
+        .payment-list {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .search-form {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .payment-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .payment-table th, .payment-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #dee2e6;
+        }
+        .payment-table th {
+            background: #f8f9fa;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.9em;
+        }
+        .pagination {
+            margin-top: 20px;
+            text-align: center;
+        }
+        .alert-info {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 20px 0;
+            text-align: center;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+<div layout:fragment="content">
+    <div class="payment-list">
+        <h2>결제 내역</h2>
+
+        <!-- 경고 메시지 -->
+        <div th:if="${payments.empty}" class="alert alert-info">
+            검색된 결제 내역이 없습니다.
+        </div>
+
+        <!-- 검색 폼 -->
+        <form class="search-form" method="get" th:action="@{/payments/list}">
+            <div class="form-group">
+                <label>기간 검색:</label>
+                <input type="date" name="startDate" th:value="${condition.startDate}">
+                ~
+                <input type="date" name="endDate" th:value="${condition.endDate}">
+            </div>
+
+            <div class="form-group">
+                <label>결제 상태:</label>
+                <select name="status">
+                    <option value="">전체</option>
+                    <option th:each="status : ${T(com.krstudy.kapi.domain.payments.status.PaymentStatus).values()}"
+                            th:value="${status}"
+                            th:text="${status.displayName()}"
+                            th:selected="${status == condition.status}">
+                    </option>
+                </select>
+            </div>
+
+            <!-- 관리자만 볼 수 있는 검색 옵션 -->
+            <div class="form-group" th:if="${@reqData.admin}">
+                <label>회원명:</label>
+                <input type="text" name="memberName" th:value="${condition.memberName}">
+            </div>
+
+            <div class="form-group">
+                <label>주문번호:</label>
+                <input type="text" name="orderId" th:value="${condition.orderId}">
+            </div>
+
+            <button type="submit">검색</button>
+        </form>
+
+        <!-- 결제 목록 테이블 -->
+        <table th:if="${!payments.empty}" class="payment-table">
+            <thead>
+            <tr>
+                <th>주문번호</th>
+                <th th:if="${@reqData.admin}">회원명</th>
+                <th>결제금액</th>
+                <th>상태</th>
+                <th>결제일시</th>
+                <th>영수증</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="payment : ${payments}">
+                <td>
+                    <a th:href="@{/payments/detail/{paymentKey}(paymentKey=${payment.paymentKey})}"
+                       th:text="${payment.orderId}">
+                    </a>
+                </td>
+                <td th:if="${@reqData.admin}"
+                    th:text="${payment.memberName}">
+                </td>
+                <td th:text="${#numbers.formatInteger(payment.amount, 0, 'COMMA')} + '원'">
+                </td>
+                <td>
+                        <span th:class="'status-badge ' + ${payment.status.name()}"
+                              th:text="${payment.status.name()}">
+                        </span>
+                </td>
+                <td th:text="${#temporals.format(payment.createdAt, 'yyyy-MM-dd HH:mm:ss')}">
+                </td>
+                <td>
+                    <a th:if="${payment.receiptUrl}"
+                       th:href="${payment.receiptUrl}"
+                       target="_blank">영수증 보기</a>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+
+        <!-- 페이징 -->
+        <div class="pagination" th:if="${payments.totalPages > 0}">
+            <span th:each="pageNumber : ${#numbers.sequence(0, payments.totalPages - 1)}">
+                <a th:href="@{/payments/list(page=${pageNumber},
+                                           size=${payments.size},
+                                           startDate=${condition.startDate},
+                                           endDate=${condition.endDate},
+                                           status=${condition.status},
+                                           memberName=${condition.memberName},
+                                           orderId=${condition.orderId})}"
+                   th:text="${pageNumber + 1}"
+                   th:class="${pageNumber == payments.number} ? 'active'">
+                </a>
+            </span>
+        </div>
+    </div>
+</div>
+</body>
+</html>

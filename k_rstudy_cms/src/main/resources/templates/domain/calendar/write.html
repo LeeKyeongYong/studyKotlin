@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html layout:decorate="~{global/usrLayout}">
+
+<head>
+    <title>글 쓰기</title>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const csrfToken = document.querySelector('meta[name="_csrf"]').getAttribute('content');
+            const csrfHeader = document.querySelector('meta[name="_csrf_header"]').getAttribute('content');
+
+            document.getElementById('eventForm').addEventListener('submit', async function (event) {
+                event.preventDefault();
+
+                const formData = new FormData(this);
+                console.log('Form Data:', [...formData.entries()]); // 모든 폼 데이터 출력
+
+                console.log('fColor Value:', formData.get('fcolor')); // fColor 값 출력
+                const selectedColor = formData.get('fcolor') || '#000000'; // 기본값
+                const payload = {
+                    title: formData.get('title'),
+                    startDay: formData.get('startDay'),
+                    endDay: formData.get('endDay'),
+                    body: formData.get('body'),
+                    hit: 0,
+                    fcolor: selectedColor // JSON 필드명과 엔티티의 필드명 일치
+                };
+                console.log('Payload:', payload);
+
+                try {
+                    const response = await fetch('/v1/scalendar', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            [csrfHeader]: csrfToken
+                        },
+                        body: JSON.stringify(payload)
+                    });
+
+                    console.log('Response Status:', response.status);
+
+                    if (response.ok) {
+                        const responseData = await response.json();
+                        console.log('Response Data:', responseData);
+                        alert("일정이 저장되었습니다.");
+                        window.location.href = '/calendar'; // Redirect to /calendar
+                    } else {
+                        const errorData = await response.text(); // HTML or plain text
+                        console.error('Error Response:', errorData);
+                        alert('Error saving event');
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    alert('An unexpected error occurred');
+                }
+            });
+        });
+    </script>
+</head>
+
+<body>
+<meta name="_csrf" content="${_csrf.token}"/>
+<meta name="_csrf_header" content="${_csrf.headerName}"/>
+
+<div layout:fragment="content">
+    <h1>Write Event</h1>
+    <form id="eventForm">
+        <input type="hidden" id="author_id" name="author_id" value="${@reqData.getMember().id}"/>
+        <label for="title">Title:</label>
+        <input type="text" id="title" name="title" required>
+
+        <label for="startDay">Start Date:</label>
+        <input type="date" id="startDay" name="startDay" required>
+
+        <label for="endDay">End Date:</label>
+        <input type="date" id="endDay" name="endDay" required>
+
+        <label for="body">Description:</label>
+        <textarea id="body" name="body" rows="4" cols="50"></textarea>
+
+        <label for="fcolor">Color:</label>
+        <select id="fcolor" name="fcolor">
+            <option value="#000000">Black</option>
+            <option value="#FF0000">Red</option>
+            <option value="#00FF00">Green</option>
+            <option value="#0000FF">Blue</option>
+            <!-- Add more colors as needed -->
+        </select>
+
+        <button type="submit">Save</button>
+    </form>
+</div>
+</body>
+
+</html>

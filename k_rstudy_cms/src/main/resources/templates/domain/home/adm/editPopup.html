@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html layout:decorate="~{global/admLayout}">
+<head>
+    <title>팝업 수정</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/ko.js"></script>
+
+    <script type="text/javascript" th:inline="javascript">
+        document.addEventListener('DOMContentLoaded', function() {
+            // Flatpickr 설정
+            flatpickr(".datepicker", {
+                enableTime: true,
+                dateFormat: "Y-m-d H:i",
+                locale: "ko",
+                time_24hr: true
+            });
+
+            // 폼 제출
+            // 폼 제출
+            document.getElementById('popupForm').addEventListener('submit', async function(e) {
+                e.preventDefault();
+
+                const formData = new FormData();
+
+                // 날짜 형식 변환 함수
+                const formatDateTime = (dateStr) => {
+                    const date = new Date(dateStr);
+                    return date.toISOString().slice(0, 19); // "YYYY-MM-DDTHH:mm:ss" 형식으로 변환
+                };
+
+                // popup 객체에 모든 필수 필드 포함
+                const popupData = {
+                    title: this.title.value,
+                    content: this.content.value,
+                    linkUrl: this.linkUrl.value,
+                    startDateTime: formatDateTime(this.startDateTime.value),  // 날짜 형식 변환
+                    endDateTime: formatDateTime(this.endDateTime.value),      // 날짜 형식 변환
+                    deviceType: this.deviceType.value,
+                    priority: parseInt(this.priority.value),
+                    width: 500,
+                    height: 500,
+                    positionX: 200,
+                    positionY: 200,
+                    target: "SELF",
+                    hideForToday: true,
+                    hideForWeek: false,
+                    displayPages: [],
+                    targetRoles: [],
+                    maxDisplayCount: 1
+                };
+
+                // popup 데이터를 JSON 문자열로 변환하여 추가
+                const blob = new Blob([JSON.stringify(popupData)], {
+                    type: 'application/json'
+                });
+                formData.append('popup', blob);
+
+                // 이미지 파일이 있는 경우에만 추가
+                if (this.image.files[0]) {
+                    formData.append('image', this.image.files[0]);
+                }
+
+                try {
+                    const response = await fetch(this.action, {
+                        method: 'PUT',
+                        body: formData
+                    });
+
+                    if (response.ok) {
+                        alert('수정되었습니다.');
+                        window.location.href = '/adm/popups';
+                    } else {
+                        const error = await response.json();
+                        alert(error.message || '수정 중 오류가 발생했습니다.');
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    alert('수정 중 오류가 발생했습니다.');
+                }
+            });
+        });
+    </script>
+</head>
+<body>
+    <div layout:fragment="content" class="container mx-auto px-4 py-8">
+        <div class="max-w-3xl mx-auto">
+            <h1 class="text-2xl font-bold mb-6">팝업 수정</h1>
+
+            <form id="popupForm" class="space-y-6"
+                  th:action="@{/api/popups/{id}(id=${popup.id})}"
+                  enctype="multipart/form-data"
+                  method="post">  <!-- method를 post로 설정 -->
+
+            <!-- 기본 정보 -->
+                <div class="bg-white shadow rounded-lg p-6">
+                    <h2 class="text-lg font-semibold mb-4">기본 정보</h2>
+                    <div class="grid grid-cols-1 gap-6">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">제목</label>
+                            <input type="text" name="title" th:value="${popup.title}"
+                                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
+                                   required>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">내용</label>
+                            <textarea name="content" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
+                                      rows="3" th:text="${popup.content}"></textarea>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">이미지</label>
+                            <div class="mt-2 flex items-center space-x-4">
+                                <img th:if="${popup.imageUrl}" th:src="${popup.imageUrl}"
+                                     class="h-32 w-32 object-cover rounded">
+                                <input type="file" name="image" accept="image/*"
+                                       class="mt-1 block w-full">
+                            </div>
+                            <p class="mt-1 text-sm text-gray-500">새 이미지를 업로드하지 않으면 기존 이미지가 유지됩니다.</p>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">링크 URL</label>
+                            <input type="text" name="linkUrl" th:value="${popup.linkUrl}"
+                                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 표시 설정 -->
+                <div class="bg-white shadow rounded-lg p-6">
+                    <h2 class="text-lg font-semibold mb-4">표시 설정</h2>
+                    <div class="grid grid-cols-2 gap-6">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">시작일시</label>
+                            <input type="text" name="startDateTime" th:value="${popup.startDateTime}"
+                                   class="datepicker mt-1 block w-full rounded-md border-gray-300 shadow-sm"
+                                   required>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">종료일시</label>
+                            <input type="text" name="endDateTime" th:value="${popup.endDateTime}"
+                                   class="datepicker mt-1 block w-full rounded-md border-gray-300 shadow-sm"
+                                   required>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">디바이스 타입</label>
+                            <select name="deviceType" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                                <option value="ALL" th:selected="${popup.deviceType == 'ALL'}">전체</option>
+                                <option value="PC" th:selected="${popup.deviceType == 'PC'}">PC</option>
+                                <option value="MOBILE" th:selected="${popup.deviceType == 'MOBILE'}">모바일</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">우선순위</label>
+                            <input type="number" name="priority" th:value="${popup.priority}"
+                                   min="1" max="10"
+                                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 저장 버튼 -->
+                <div class="flex justify-end space-x-3">
+                    <a th:href="@{/adm/popups}"
+                       class="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600">
+                        취소
+                    </a>
+                    <button type="submit"
+                            class="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600">
+                        수정하기
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</body>
+</html>

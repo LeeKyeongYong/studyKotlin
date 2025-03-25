@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html layout:decorate="~{global/msgLayout}">
+<head>
+    <title>PDF 뷰어</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .pdf-viewer {
+            height: calc(100vh - 200px);
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .page-container {
+            width: 100%;
+            max-width: 800px;
+            margin: 0 auto;
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: #f3f4f6;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        .page-image {
+            max-width: 100%;
+            max-height: calc(100vh - 300px);
+            width: auto;
+            height: auto;
+            object-fit: contain;
+            position: relative;
+            z-index: 1;
+        }
+        .zoom-controls {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background-color: rgba(255, 255, 255, 0.9);
+            padding: 5px;
+            border-radius: 4px;
+            display: flex;
+            gap: 5px;
+            z-index: 2;
+        }
+        .zoom-button {
+            padding: 5px 10px;
+            background-color: #4b5563;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .zoom-button:hover {
+            background-color: #374151;
+        }
+    </style>
+    <script type="text/javascript" th:inline="javascript">
+        let currentPage = [[${currentPage}]];
+        const totalPages = [[${totalPages}]];
+        const fileId = [[${file.id}]];
+        const fileName = [[${file.originalFileName}]];
+        const pageCache = new Map();
+        let currentZoom = 1.0;
+
+        async function loadPage(page) {
+            if (page < 1 || page > totalPages) return;
+
+            const cacheKey = `${fileId}-${page}`;
+            if (pageCache.has(cacheKey)) {
+                return pageCache.get(cacheKey);
+            }
+
+            try {
+                const response = await fetch(`/api/pdf/${fileId}/pages/${page}`, {
+                    headers: {
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="_csrf"]').content
+                    }
+                });
+                if (!response.ok) throw new Error('Page load failed');
+
+                const blob = await response.blob();
+                const url = URL.createObjectURL(blob);
+                pageCache.set(cacheKey, url);
+
+                if (pageCache.size > 10) {
+                    const firstKey = pageCache.keys().next().value;
+                    URL.revokeObjectURL(pageCache.get(firstKey));
+                    pageCache.delete(firstKey);
+                }
+
+                return url;
+            } catch (error) {
+                console.error('Error loading page:', error);
+                throw error;
+            }
+        }
+
+        function adjustZoom(delta) {
+            const pageImage = document.getElementById('pageImage');
+            currentZoom = Math.max(0.5, Math.min(2.0, currentZoom + delta));
+            pageImage.style.transform = `scale(${currentZoom})`;
+            document.getElementById('zoomLevel').textContent = `${Math.round(currentZoom * 100)}%`;
+        }
+
+        async function changePage(newPage) {
+            try {
+                if (newPage < 1 || newPage > totalPages) return;
+
+                const pageUrl = await loadPage(newPage);
+                const pageImage = document.getElementById('pageImage');
+                pageImage.src = pageUrl;
+                document.getElementById('currentPageNum').textContent = newPage;
+                currentPage = newPage;
+
+                // URL 업데이트
+                const url = new URL(window.location);
+                url.searchParams.set('page', newPage);
+                window.history.pushState({}, '', url);
+
+                // 버튼 상태 업데이트
+                updateNavigationButtons(newPage);
+            } catch (error) {
+                alert('페이지 로딩 중 오류가 발생했습니다.');
+            }
+        }
+
+        function updateNavigationButtons(page) {
+            const prevButton = document.getElementById('prevButton');
+            const nextButton = document.getElementById('nextButton');
+
+            prevButton.disabled = page <= 1;
+            nextButton.disabled = page >= totalPages;
+        }
+
+        async function downloadPdf(fileId, fileName) {
+            try {
+                const response = await fetch(`/api/pdf/${fileId}/download`, {
+                    headers: {
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="_csrf"]').content
+                    }
+                });
+
+                if (!response.ok) throw new Error('Download failed');
+
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = fileName;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+            } catch (error) {
+                console.error('Download error:', error);
+                alert('파일 다운로드 중 오류가 발생했습니다.');
+            }
+        }
+
+        // 초기 페이지 로드
+        document.addEventListener('DOMContentLoaded', async () => {
+            await loadPage(currentPage);
+            updateNavigationButtons(currentPage);
+        });
+    </script>
+</head>
+<body>
+<div layout:fragment="content" class="container mx-auto px-4 py-8">
+    <div class="bg-white rounded-lg shadow-lg p-6">
+        <!-- 문서 정보 -->
+        <div class="mb-6">
+            <h1 class="text-2xl font-bold mb-2" th:text="${file.originalFileName}"></h1>
+            <p class="text-gray-600" th:text="${'업로드 날짜: ' + #temporals.format(file.createDate, 'yyyy-MM-dd HH:mm')}"></p>
+        </div>
+
+        <!-- PDF 뷰어 -->
+        <div class="pdf-viewer bg-gray-100 rounded-lg p-4">
+            <div class="page-container">
+                <div class="zoom-controls">
+                    <button class="zoom-button" onclick="adjustZoom(-0.1)">
+                        <i class="fas fa-search-minus"></i>
+                    </button>
+                    <span id="zoomLevel" class="px-2">100%</span>
+                    <button class="zoom-button" onclick="adjustZoom(0.1)">
+                        <i class="fas fa-search-plus"></i>
+                    </button>
+                </div>
+                <img id="pageImage" class="page-image rounded shadow-lg transition-transform duration-200"
+                     th:src="@{/api/pdf/{id}/pages/{page}(id=${file.id},page=${currentPage})}"
+                     alt="PDF Page">
+            </div>
+
+            <!-- 페이지 네비게이션 -->
+            <div class="flex justify-between items-center mt-4">
+                <button id="prevButton"
+                        onclick="changePage(currentPage - 1)"
+                        class="bg-blue-500 text-white px-4 py-2 rounded disabled:bg-gray-300 hover:bg-blue-600 transition-colors">
+                    <i class="fas fa-chevron-left mr-2"></i> 이전
+                </button>
+
+                <span class="text-lg font-medium">
+                    페이지 <span id="currentPageNum" th:text="${currentPage}"></span> / <span th:text="${totalPages}"></span>
+                </span>
+
+                <button id="nextButton"
+                        onclick="changePage(currentPage + 1)"
+                        class="bg-blue-500 text-white px-4 py-2 rounded disabled:bg-gray-300 hover:bg-blue-600 transition-colors">
+                    다음 <i class="fas fa-chevron-right ml-2"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- 작업 버튼 -->
+        <div class="mt-6 flex justify-end space-x-4">
+            <button onclick="downloadPdf(fileId, fileName)"
+                    class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 transition-colors">
+                <i class="fas fa-download mr-2"></i> 다운로드
+            </button>
+            <a th:href="@{/uploadPdf(page=${listPage})}"
+               class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 transition-colors">
+                <i class="fas fa-list mr-2"></i> 목록으로
+            </a>
+        </div>
+    </div>
+</div>
+</body>
+</html>

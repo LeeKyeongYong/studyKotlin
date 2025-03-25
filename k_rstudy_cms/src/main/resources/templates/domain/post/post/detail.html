@@ -1,0 +1,129 @@
+<html layout:decorate="~{global/usrLayout}">
+
+<head>
+    <title th:text="|글 ${post.id}번|"></title>
+</head>
+
+<body>
+
+<div layout:fragment="content">
+    <h1>글 내용</h1>
+
+    <div>
+        <h3>작성자</h3>
+        <div th:text="${post.author?.username}"></div>
+    </div>
+
+    <div>
+        <h3>조회수</h3>
+        <div th:text="${#numbers.formatInteger(post.hit, 3, 'COMMA')}"></div>
+    </div>
+
+    <div>
+        <h3>추천수</h3>
+        <div th:text="${#numbers.formatInteger(post.likes.size, 3, 'COMMA')}"></div>
+    </div>
+
+    <div>
+        <h3>공개여부</h3>
+        <div th:text="${post.published ? '공개' : '비공개'}"></div>
+    </div>
+
+    <div>
+        <h3>제목</h3>
+        <div th:text="${post.title}"></div>
+    </div>
+
+    <div>
+        <h3>내용</h3>
+        <div style="white-space: pre-wrap;" th:text="${post.body}"></div>
+    </div>
+
+    <hr>
+
+    <div>
+        <button onclick="history.back();">뒤로가기</button>
+        <a th:if="${@postService.canModify(@reqData.member, post)}" th:href="|/post/${post.id}/modify|">글 수정</a>
+
+        <form th:if="${@postService.canLike(@reqData.member, post)}"
+              th:action="@{/post/{id}/like(id=${post.id})}"
+              method="post" id="likeForm">
+            <button type="submit" onclick="submitLikeForm(event)">추천</button>
+        </form>
+
+
+        <form style="display: contents"
+              th:if="${@postService.canCancelLike(@reqData.member, post)}"
+              th:action="|/post/${post.id}/cancelLike|"
+              method="POST">
+            <input type="hidden" name="_method" value="DELETE" />
+            <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}" />
+            <button type="submit">추천 취소</button>
+        </form>
+
+        <form style="display: contents"
+              th:if="${@postService.canDelete(@reqData.member, post)}"
+              th:action="|/post/${post.id}/delete|"
+              method="POST"
+        >
+            <input type="hidden" name="_method" value="DELETE">
+            <button onclick="return confirm('정말로 삭제하시겠습니까?');">글 삭제</button>
+        </form>
+    </div>
+
+    <th:block th:if="${@reqData.login}">
+        <h3>댓글 작성</h3>
+        <form th:action="|/post/${post.id}/comment/write|" method="POST">
+            <textarea name="body" cols="30" rows="10" required maxlength="10000" placeholder="댓글"></textarea>
+            <button>댓글 작성</button>
+        </form>
+    </th:block>
+
+    <h3>댓글 목록</h3>
+
+    <ul>
+        <li style="scroll-margin-top: 50px;" th:each="postComment : ${post.comments}"
+            th:id="|postComment-${postComment.id}|">
+            <div>
+                <div th:text="${postComment.id}"></div>
+                <div th:text="${postComment.body}"></div>
+                <div th:text="${postComment.author.username}"></div>
+                <div th:text="${postComment.createDate}"></div>
+            </div>
+
+            <div>
+                <a th:if="${@postService.canModifyComment(@reqData.member, postComment)}"
+                   th:href="|/post/${post.id}/comment/${postComment.id}/modify|">
+                    댓글 수정
+                </a>
+                <a th:if="${@postService.canDeleteComment(@reqData.member, postComment)}"
+                   th:href="|/post/${post.id}/comment/${postComment.id}/delete|" method="DELETE"
+                   onclick="return confirm('정말로 삭제하시겠습니까?');"
+                >
+                    댓글 삭제
+                </a>
+
+            </div>
+        </li>
+    </ul>
+</div>
+
+<script type="text/javascript" th:inline="javascript">
+    function submitLikeForm(event) {
+        event.preventDefault();
+        var form = document.getElementById('likeForm');
+        var button = form.querySelector('button[type="submit"]');
+
+        if (button.disabled) {
+            return;
+        }
+
+        button.disabled = true;
+        form.submit();
+
+    }
+</script>
+
+</body>
+
+</html>

@@ -1,0 +1,118 @@
+<html>
+<head>
+    <script type="text/javascript" th:inline="javascript">
+        document.addEventListener('DOMContentLoaded', function() {
+            let currentSlide = 0;
+            const slides = document.querySelectorAll('.banner-slide');
+            const totalSlides = slides.length;
+            let autoSlideInterval;
+
+            function showSlide(index) {
+                if (totalSlides === 0) return;
+
+                currentSlide = (index + totalSlides) % totalSlides;
+                const container = document.querySelector('.banner-slides');
+                container.style.transform = `translateX(-${currentSlide * 100}%)`;
+
+                // 인디케이터 업데이트
+                document.querySelectorAll('.banner-slider button').forEach((btn, idx) => {
+                    btn.classList.toggle('bg-opacity-100', idx === currentSlide);
+                });
+            }
+
+            function nextSlide() {
+                showSlide(currentSlide + 1);
+            }
+
+            function prevSlide() {
+                showSlide(currentSlide - 1);
+            }
+
+            function startAutoSlide() {
+                stopAutoSlide();
+                autoSlideInterval = setInterval(nextSlide, 5000);
+            }
+
+            function stopAutoSlide() {
+                if (autoSlideInterval) {
+                    clearInterval(autoSlideInterval);
+                }
+            }
+
+            // 마우스 이벤트
+            const slider = document.querySelector('.banner-slider');
+            slider.addEventListener('mouseenter', stopAutoSlide);
+            slider.addEventListener('mouseleave', startAutoSlide);
+
+            // 터치 이벤트
+            let touchStartX = 0;
+            let touchEndX = 0;
+
+            slider.addEventListener('touchstart', e => {
+                touchStartX = e.changedTouches[0].screenX;
+            });
+
+            slider.addEventListener('touchend', e => {
+                touchEndX = e.changedTouches[0].screenX;
+                if (touchStartX - touchEndX > 50) {
+                    nextSlide();
+                } else if (touchEndX - touchStartX > 50) {
+                    prevSlide();
+                }
+            });
+
+            // 키보드 네비게이션
+            document.addEventListener('keydown', e => {
+                if (e.key === 'ArrowLeft') {
+                    prevSlide();
+                } else if (e.key === 'ArrowRight') {
+                    nextSlide();
+                }
+            });
+
+            // 초기화
+            showSlide(0);
+            startAutoSlide();
+        });
+    </script>
+</head>
+    <body>
+        <div th:fragment="bannerSlide" class="banner-slider relative mt-8">
+            <div class="banner-container overflow-hidden">
+                <div class="banner-slides flex transition-transform duration-500">
+                    <!-- 배너가 없을 경우 표시할 기본 배너 -->
+                    <div th:if="${#lists.isEmpty(banners)}" class="banner-slide w-full flex-shrink-0">
+                        <div class="relative bg-gray-100 w-full h-64 flex items-center justify-center">
+                            <p class="text-gray-500">등록된 배너가 없습니다</p>
+                        </div>
+                    </div>
+                    <!-- 실제 배너 목록 -->
+                    <div th:each="banner : ${banners}" class="banner-slide w-full flex-shrink-0">
+                        <a th:href="${banner.linkUrl}" class="block relative h-64">
+                            <img th:src="${banner.imageUrl}" th:alt="${banner.title}"
+                                 class="w-full h-full object-cover">
+                            <div class="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 text-white p-4 transform translate-y-full transition-transform duration-300 hover:translate-y-0">
+                                <h3 class="text-xl font-bold" th:text="${banner.title}"></h3>
+                                <p class="text-sm mt-2" th:text="${banner.description}"></p>
+                            </div>
+                        </a>
+                    </div>
+                </div>
+            </div>
+            <!-- 네비게이션 버튼 -->
+            <div th:if="${not #lists.isEmpty(banners)}" class="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2">
+                <button th:each="banner, iterStat : ${banners}"
+                        th:onclick="'showSlide(' + ${iterStat.index} + ')'"
+                        class="w-3 h-3 rounded-full bg-white bg-opacity-50 hover:bg-opacity-100 transition-colors">
+                </button>
+            </div>
+            <!-- 이전/다음 버튼 -->
+            <button class="absolute left-4 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-50 text-white p-2 rounded-full hover:bg-opacity-75 transition-opacity" onclick="prevSlide()">
+                <i class="fas fa-chevron-left"></i>
+            </button>
+            <button class="absolute right-4 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-50 text-white p-2 rounded-full hover:bg-opacity-75 transition-opacity" onclick="nextSlide()">
+                <i class="fas fa-chevron-right"></i>
+            </button>
+        </div>
+    </body>
+</html>

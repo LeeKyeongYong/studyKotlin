@@ -1,0 +1,177 @@
+<html layout:decorate="~{global/usrLayout}">
+
+<head>
+    <title th:text="|미션 등록|"></title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <style>
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+            font-size: 12px;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .upload-form {
+            border: 1px solid #ddd;
+            padding: 20px;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+        }
+
+        .file-input {
+            margin-bottom: 10px;
+        }
+
+        .button-group {
+            margin-top: 20px;
+        }
+
+        .btn {
+            padding: 8px 15px;
+            margin-right: 10px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .btn-primary {
+            background-color: #007bff;
+            color: white;
+        }
+
+        .btn-secondary {
+            background-color: #6c757d;
+            color: white;
+        }
+
+        .btn:hover {
+            opacity: 0.9;
+        }
+
+        .alert {
+            padding: 10px;
+            margin-bottom: 15px;
+            border-radius: 4px;
+            display: none;
+        }
+
+        .alert-danger {
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+    </style>
+    <script type="text/javascript" th:inline="javascript">
+        /*<![CDATA[*/
+        // 서버에서 전달한 사용자 ID를 JavaScript 변수로 저장하고 인코딩
+        const userId = /*[[${#authentication.principal.username}]]*/ 'defaultUserId';
+        const encodedUserId = encodeURIComponent(userId);
+
+        $(document).ready(function() {
+            const form = $('form');
+
+            form.on('submit', function(e) {
+                e.preventDefault();
+
+                const formData = new FormData();
+                const fileInputs = $('input[type="file"]');
+
+                fileInputs.each(function() {
+                    if (this.files.length > 0) {
+                        formData.append('file', this.files[0]);
+                    }
+                });
+
+                $.ajax({
+                    url: '/api/v1/files/upload',
+                    type: 'POST',
+                    data: formData,
+                    headers: {
+                        'X-User-Id': encodedUserId,  // 인코딩된 사용자 ID 사용
+                        'X-CSRF-TOKEN': $('input[name="_csrf"]').val()
+                    },
+                    processData: false,
+                    contentType: false,
+                    success: function(response) {
+                        $('#errorAlert').hide();
+                        form[0].reset();
+                        alert('파일이 성공적으로 업로드되었습니다.');
+                    },
+                    error: function(xhr, status, error) {
+                        console.error('Upload error:', xhr.responseText); // 자세한 에러 로깅
+                        $('#errorAlert').text('업로드 실패: ' + (xhr.responseText || error)).show();
+                    }
+                });
+            });
+
+            // 파일 추가/제거 버튼 핸들러는 동일하게 유지
+            $('#btnAddFile').click(function() {
+                //const newFileInput = '<div class="file-input"><input type="file" name="file" class="form-control"></div>';
+                //$('#file-upload-container').append(newFileInput);
+                const fileInputs = $('.file-input');
+                if (fileInputs.length < 10) {
+                    const newFileInput = '<div class="file-input"><input type="file" name="file" class="form-control"></div>';
+                    $('#file-upload-container').append(newFileInput);
+                } else {
+                    alert('파일은 최대 10개까지 업로드할 수 있습니다.');
+                }
+            });
+
+            $('#btnRemoveFile').click(function() {
+                const fileInputs = $('.file-input');
+                if (fileInputs.length > 1) {
+                    fileInputs.last().remove();
+                }
+            });
+        });
+        /*]]>*/
+    </script>
+</head>
+
+<body>
+    <div layout:fragment="content">
+        <h1>미션 업로드</h1>
+        <div class="container">
+            <p><strong>업로드 할 파일을 지정해주세요</strong></p>
+
+            <!-- 현재 로그인한 사용자 정보 표시 (디버깅용, 필요시 제거) -->
+            <p th:if="${#authentication.principal}" class="text-muted">
+                로그인 사용자: <span th:text="${#authentication.principal.id}"></span>
+            </p>
+            <p>ID: [[${#authentication.principal.id}]]</p>
+            <p>Username: [[${#authentication.principal.username}]]</p>
+            <p>Authorities: [[${#authentication.principal.authorities}]]</p>
+
+
+            <div th:if="${message}" class="alert alert-success" th:text="${message}"></div>
+            <div class="alert alert-danger" id="errorAlert"></div>
+
+            <form th:action="@{/api/v1/files/upload}" method="post" enctype="multipart/form-data">
+                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
+                <div id="file-upload-container">
+                    <div class="file-input">
+                        <input type="file" name="file" class="form-control">
+                    </div>
+                </div>
+
+                <div class="button-group">
+                    <button type="button" id="btnAddFile" class="btn btn-secondary">파일 추가</button>
+                    <button type="button" id="btnRemoveFile" class="btn btn-secondary">파일 제거</button>
+                    <button type="submit" class="btn btn-primary">업로드</button>
+                </div>
+            </form>
+
+            <div th:if="${message}" class="alert"
+                 th:classappend="${success} ? 'alert-success' : 'alert-danger'"
+                 th:text="${message}">
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>

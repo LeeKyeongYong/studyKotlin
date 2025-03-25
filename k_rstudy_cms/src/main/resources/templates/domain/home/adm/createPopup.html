@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html layout:decorate="~{global/admLayout}">
+<head>
+    <title>팝업 등록</title>
+    <style>
+        .popup-form-container {
+            max-width: 800px;
+            margin: 2rem auto;
+            padding: 2rem;
+            background: #ffffff;
+            box-shadow: 0 0 15px rgba(0,0,0,0.1);
+            border-radius: 8px;
+        }
+
+        .form-section {
+            margin-bottom: 2rem;
+            padding: 1.5rem;
+            background: #f8f9fa;
+            border-radius: 6px;
+            border: 1px solid #e9ecef;
+        }
+
+        .section-title {
+            font-size: 1.25rem;
+            color: #343a40;
+            margin-bottom: 1.5rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid #4dabf7;
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            color: #495057;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            transition: border-color 0.2s;
+        }
+
+        .form-input:focus {
+            border-color: #4dabf7;
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(77, 171, 247, 0.2);
+        }
+
+        .form-textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+
+        .input-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            margin: 0.5rem 0;
+        }
+
+        .checkbox-label {
+            margin-left: 0.5rem;
+            color: #495057;
+        }
+
+        .form-select {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            background-color: white;
+        }
+
+        .file-input {
+            padding: 0.5rem;
+            border: 1px dashed #ced4da;
+            border-radius: 4px;
+            background: #f8f9fa;
+        }
+
+        .button-group {
+            display: flex;
+            justify-content: flex-end;
+            gap: 1rem;
+            margin-top: 2rem;
+        }
+
+        .btn {
+            padding: 0.5rem 1.5rem;
+            border-radius: 4px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-cancel {
+            background: #e9ecef;
+            color: #495057;
+            border: 1px solid #ced4da;
+        }
+
+        .btn-cancel:hover {
+            background: #dee2e6;
+        }
+
+        .btn-submit {
+            background: #4dabf7;
+            color: white;
+            border: none;
+        }
+
+        .btn-submit:hover {
+            background: #339af0;
+        }
+
+        .error-message {
+            color: #fa5252;
+            font-size: 0.875rem;
+            margin-top: 0.25rem;
+        }
+
+        /* 반응형 디자인 */
+        @media (max-width: 768px) {
+            .popup-form-container {
+                margin: 1rem;
+                padding: 1rem;
+            }
+
+            .input-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .button-group {
+                flex-direction: column;
+            }
+
+            .btn {
+                width: 100%;
+                margin: 0.5rem 0;
+            }
+        }
+    </style>
+
+    <script type="text/javascript">
+        document.addEventListener('DOMContentLoaded', function() {
+
+            // URL 파라미터에서 템플릿 정보 가져오기
+            const params = new URLSearchParams(window.location.search);
+
+            // 템플릿 데이터 설정
+            const templateData = {
+                id: params.get('templateId'),
+                name: params.get('name'),
+                width: params.get('width'),
+                height: params.get('height'),
+                backgroundColor: params.get('backgroundColor'),
+                borderStyle: params.get('borderStyle'),
+                content: params.get('content')
+            };
+
+            // 폼 요소 가져오기
+            const form = document.getElementById('popupForm');
+
+            // 템플릿 데이터가 있는 경우 폼에 적용
+            if (templateData.id) {
+                // hidden 필드 설정
+                document.getElementById('templateId').value = templateData.id;
+                document.getElementById('templateWidth').value = templateData.width;
+                document.getElementById('templateHeight').value = templateData.height;
+                document.getElementById('templateBackgroundColor').value = templateData.backgroundColor;
+                document.getElementById('templateBorderStyle').value = templateData.borderStyle;
+                document.getElementById('templateContent').value = templateData.content;
+
+                // 폼 필드에 값 설정
+                form.querySelector('input[name="title"]').value = templateData.name || '';
+                form.querySelector('input[name="width"]').value = templateData.width || '400';
+                form.querySelector('input[name="height"]').value = templateData.height || '300';
+                form.querySelector('textarea[name="content"]').value = templateData.content || '';
+
+                // 추가 스타일 관련 필드 설정
+                if (form.querySelector('input[name="backgroundColor"]')) {
+                    form.querySelector('input[name="backgroundColor"]').value = templateData.backgroundColor || '#ffffff';
+                }
+                if (form.querySelector('input[name="borderStyle"]')) {
+                    form.querySelector('input[name="borderStyle"]').value = templateData.borderStyle || '1px solid #000000';
+                }
+            }
+
+
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+
+                const formData = new FormData(e.target);
+
+                // 날짜 형식 변환
+                const startDateTime = new Date(formData.get('startDateTime')).toISOString();
+                const endDateTime = new Date(formData.get('endDateTime')).toISOString();
+
+                // displayPages 설정 (현재는 모든 페이지로 설정)
+                const displayPages = new Set(['/']);
+
+                // targetRoles 설정 (기본값으로 모든 사용자 설정)
+                const targetRoles = new Set(['ROLE_USER']);
+
+                const popupData = {
+                    title: formData.get('title'),
+                    content: formData.get('content'),
+                    startDateTime: startDateTime,
+                    endDateTime: endDateTime,
+                    priority: parseInt(formData.get('priority')),
+                    width: parseInt(formData.get('width')),
+                    height: parseInt(formData.get('height')),
+                    positionX: parseInt(formData.get('positionX')),
+                    positionY: parseInt(formData.get('positionY')),
+                    linkUrl: formData.get('linkUrl') || null,
+                    altText: formData.get('altText') || null,
+                    target: formData.get('target'),
+                    deviceType: formData.get('deviceType'),
+                    cookieExpireDays: parseInt(formData.get('cookieExpireDays')) || 1,
+                    hideForToday: formData.get('hideForToday') === 'on',
+                    hideForWeek: formData.get('hideForWeek') === 'on',
+                    backgroundColor: formData.get('backgroundColor') || null,
+                    borderStyle: formData.get('borderStyle') || null,
+                    shadowEffect: formData.get('shadowEffect') === 'on',
+                    animationType: formData.get('animationType') || 'NONE',
+                    displayPages: Array.from(displayPages),
+                    targetRoles: Array.from(targetRoles),
+                    maxDisplayCount: parseInt(formData.get('maxDisplayCount')) || 0
+                };
+
+                const imageFile = formData.get('image');
+                const finalFormData = new FormData();
+
+                finalFormData.append('popup', new Blob([JSON.stringify(popupData)], {
+                    type: 'application/json'
+                }));
+
+                if (imageFile && imageFile.size > 0) {
+                    finalFormData.append('image', imageFile);
+                }
+
+                try {
+                    const response = await fetch('/api/popups', {
+                        method: 'POST',
+                        body: finalFormData
+                    });
+
+                    if (!response.ok) {
+                        const error = await response.json();
+                        throw new Error(error.error || '팝업 생성에 실패했습니다.');
+                    }
+
+                    alert('팝업이 성공적으로 등록되었습니다.');
+                    window.location.href = '/adm/popups';
+                } catch (error) {
+                    console.error('Error:', error);
+                    alert(error.message);
+                }
+            });
+        });
+    </script>
+</head>
+    <body>
+        <div layout:fragment="content">
+            <div class="popup-form-container">
+                <h1 class="section-title">팝업 등록</h1>
+
+                <form id="popupForm">
+
+                    <!-- 템플릿 적용 시 기본값 설정 -->
+                    <div style="display: none;">
+                        <input type="hidden" id="templateId" name="templateId">
+                        <input type="hidden" id="templateWidth" name="templateWidth">
+                        <input type="hidden" id="templateHeight" name="templateHeight">
+                        <input type="hidden" id="templateBackgroundColor" name="templateBackgroundColor">
+                        <input type="hidden" id="templateBorderStyle" name="templateBorderStyle">
+                        <input type="hidden" id="templateContent" name="templateContent">
+                    </div>
+
+                    <!-- 기본 정보 섹션 -->
+                    <div class="form-section">
+                        <h2 class="section-title">기본 정보</h2>
+                        <div class="form-group">
+                            <label class="form-label">제목</label>
+                            <input type="text" name="title" class="form-input" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">내용</label>
+                            <textarea name="content" class="form-input form-textarea"></textarea>
+                        </div>
+                    </div>
+
+                    <!-- 표시 기간 섹션 -->
+                    <div class="form-section">
+                        <h2 class="section-title">표시 기간</h2>
+                        <div class="input-grid">
+                            <div class="form-group">
+                                <label class="form-label">시작일시</label>
+                                <input type="datetime-local" name="startDateTime" class="form-input" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">종료일시</label>
+                                <input type="datetime-local" name="endDateTime" class="form-input" required>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 크기 및 위치 섹션 -->
+                    <div class="form-section">
+                        <h2 class="section-title">크기 및 위치</h2>
+                        <div class="input-grid">
+                            <div class="form-group">
+                                <label class="form-label">너비 (px)</label>
+                                <input type="number" name="width" min="100" max="2000" class="form-input" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">높이 (px)</label>
+                                <input type="number" name="height" min="100" max="2000" class="form-input" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">X 좌표</label>
+                                <input type="number" name="positionX" class="form-input" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Y 좌표</label>
+                                <input type="number" name="positionY" class="form-input" required>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 이미지 및 링크 섹션 -->
+                    <div class="form-section">
+                        <h2 class="section-title">이미지 및 링크</h2>
+                        <div class="form-group">
+                            <label class="form-label">이미지</label>
+                            <input type="file" name="image" accept="image/*" class="file-input">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">링크 URL</label>
+                            <input type="text" name="linkUrl" class="form-input" placeholder="예: /adm/popups">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">대체 텍스트</label>
+                            <input type="text" name="altText" class="form-input">
+                        </div>
+                    </div>
+
+                    <!-- 표시 옵션 섹션 -->
+                    <div class="form-section">
+                        <h2 class="section-title">표시 옵션</h2>
+                        <div class="input-grid">
+                            <div class="form-group">
+                                <label class="form-label">디바이스 타입</label>
+                                <select name="deviceType" class="form-select">
+                                    <option value="ALL">모든 기기</option>
+                                    <option value="PC">PC</option>
+                                    <option value="MOBILE">모바일</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">링크 타겟</label>
+                                <select name="target" class="form-select">
+                                    <option value="SELF">현재 창</option>
+                                    <option value="BLANK">새 창</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 추가 설정 섹션 -->
+                    <div class="form-section">
+                        <h2 class="section-title">추가 설정</h2>
+                        <div class="input-grid">
+                            <div class="form-group">
+                                <label class="form-label">우선순위</label>
+                                <input type="number" name="priority" min="1" max="10" class="form-input" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">최대 노출 횟수</label>
+                                <input type="number" name="maxDisplayCount" min="0" class="form-input">
+                            </div>
+                        </div>
+                        <div class="checkbox-group">
+                            <input type="checkbox" name="hideForToday" id="hideForToday">
+                            <label for="hideForToday" class="checkbox-label">오늘 하루 보지 않기 허용</label>
+                        </div>
+                        <div class="checkbox-group">
+                            <input type="checkbox" name="hideForWeek" id="hideForWeek">
+                            <label for="hideForWeek" class="checkbox-label">일주일 동안 보지 않기 허용</label>
+                        </div>
+                    </div>
+
+                    <div class="button-group">
+                        <button type="button" onclick="history.back()" class="btn btn-cancel">취소</button>
+                        <button type="submit" class="btn btn-submit">등록</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </body>
+</html>

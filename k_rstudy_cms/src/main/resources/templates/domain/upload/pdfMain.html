@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html layout:decorate="~{global/msgLayout}">
+<head>
+    <title>PDF 미리보기 등록</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .upload-area {
+            border: 2px dashed #cbd5e0;
+            transition: all 0.3s ease;
+        }
+        .upload-area:hover {
+            border-color: #4299e1;
+            background-color: #ebf8ff;
+        }
+        .upload-progress {
+            display: none;
+            width: 100%;
+            margin-top: 1rem;
+        }
+        .upload-progress.active {
+            display: block;
+        }
+    </style>
+    <meta name="_username" th:content="${#authentication.principal.username}" />
+    <script>
+
+        const downloadStatus = new Map();
+
+        async function downloadPdf(fileId, fileName) {
+            // 이미 다운로드 중인 경우 중복 요청 방지
+            if (downloadStatus.get(fileId)) {
+                alert('이미 다운로드가 진행 중입니다.');
+                return;
+            }
+
+            const downloadButton = document.querySelector(`#download-${fileId}`);
+            try {
+                downloadStatus.set(fileId, true);
+                downloadButton.disabled = true;
+                downloadButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 다운로드 중...';
+
+                const response = await fetch(`/api/pdf/${fileId}/download`, {
+                    method: 'GET',
+                    headers: {
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="_csrf"]').content
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = fileName;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+
+            } catch (error) {
+                console.error('Download error:', error);
+                alert('파일 다운로드 중 오류가 발생했습니다.');
+            } finally {
+                downloadStatus.delete(fileId);
+                downloadButton.disabled = false;
+                downloadButton.innerHTML = '<i class="fas fa-download"></i> 다운로드';
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const uploadForm = document.getElementById('uploadForm');
+            const fileInput = document.getElementById('file');
+            const fileNameDisplay = document.getElementById('fileNameDisplay');
+            const progressBar = document.getElementById('uploadProgress');
+            const submitButton = document.getElementById('submitButton');
+
+            // 파일 선택 시 표시
+            fileInput.addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    fileNameDisplay.textContent = `선택된 파일: ${file.name}`;
+                    fileNameDisplay.classList.remove('hidden');
+                } else {
+                    fileNameDisplay.classList.add('hidden');
+                }
+            });
+
+            // 폼 제출 처리
+            uploadForm.addEventListener('submit', async function(e) {
+                e.preventDefault();
+
+                const file = fileInput.files[0];
+                const title = document.getElementById('title').value.trim();
+                const userId = document.querySelector('meta[name="_username"]').content;
+
+                // 입력 검증
+                if (!file) {
+                    alert('파일을 선택해주세요.');
+                    return;
+                }
+                if (!title) {
+                    alert('문서 설명을 입력해주세요.');
+                    return;
+                }
+                if (file.type !== 'application/pdf') {
+                    alert('PDF 파일만 업로드 가능합니다.');
+                    return;
+                }
+
+                // FormData 준비
+                const formData = new FormData();
+                formData.append('file', file);
+                formData.append('title', title);
+
+                try {
+                    submitButton.disabled = true;
+                    progressBar.parentElement.classList.add('active');
+
+                    const response = await fetch('/api/pdf/upload', {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="_csrf"]').content
+                        },
+                        body: formData
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+
+                    const result = await response.json();
+
+                    if (result.resultCode === '200') {
+                        alert('파일이 성공적으로 업로드되었습니다.');
+                        window.location.reload();
+                    } else {
+                        alert(result.message || '업로드 중 오류가 발생했습니다.');
+                    }
+                } catch (error) {
+                    console.error('Upload error:', error);
+                    alert('업로드 중 오류가 발생했습니다.');
+                } finally {
+                    submitButton.disabled = false;
+                    progressBar.parentElement.classList.remove('active');
+                }
+            });
+        });
+    </script>
+</head>
+<body class="bg-gray-50">
+<div layout:fragment="content">
+    <div class="max-w-4xl mx-auto p-4">
+        <h1 class="text-3xl font-bold text-gray-800 mb-8">문서 관리 시스템</h1>
+
+        <!-- Upload Form -->
+        <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+            <form id="uploadForm" class="space-y-4">
+                <div class="upload-area p-8 rounded-lg text-center">
+                    <i class="fas fa-cloud-upload-alt text-4xl text-gray-400 mb-4"></i>
+                    <h3 class="text-lg font-semibold text-gray-700">PDF 파일 업로드</h3>
+                    <p class="text-sm text-gray-500 mb-4">PDF 파일만 업로드 가능합니다</p>
+                    <input type="file" id="file" name="file" accept=".pdf" class="hidden">
+                    <button type="button"
+                            class="bg-blue-500 text-white px-6 py-2 rounded-md hover:bg-blue-600 transition-colors"
+                            onclick="document.getElementById('file').click()">
+                        파일 선택
+                    </button>
+                    <p id="fileNameDisplay" class="mt-2 text-sm text-gray-600 hidden"></p>
+                </div>
+
+                <div class="space-y-2">
+                    <label for="title" class="block text-sm font-medium text-gray-700">문서 설명</label>
+                    <input type="text" id="title" name="title"
+                           class="w-full px-3 py-2 border rounded-md focus:ring-blue-500 focus:border-blue-500">
+                </div>
+
+                <!-- Progress Bar -->
+                <div class="upload-progress">
+                    <div class="w-full bg-gray-200 rounded-full h-2.5">
+                        <div id="uploadProgress"
+                             class="bg-blue-600 h-2.5 rounded-full"
+                             style="width: 0%">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="text-right">
+                    <button id="submitButton"
+                            type="submit"
+                            class="bg-green-500 text-white px-6 py-2 rounded-md hover:bg-green-600 transition-colors disabled:opacity-50">
+                        업로드
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Error Message -->
+        <div th:if="${error}" class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-8" role="alert">
+            <p th:text="${error}"></p>
+        </div>
+
+        <!-- Documents List -->
+        <div class="bg-white rounded-lg shadow-md overflow-hidden">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">번호</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">파일명</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">업로드 일자</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">액션</th>
+                </tr>
+                </thead>
+                <!-- Documents List 부분 수정 -->
+                <tbody class="bg-white divide-y divide-gray-200">
+                <tr th:each="doc : ${documents}">
+
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500" th:text="${doc.id}"></td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <a th:href="@{/uploadPdf/view/{id}(id=${doc.id}, page=${page})}"
+                           class="text-blue-600 hover:text-blue-800"
+                           th:text="${doc.originalFileName}">
+                        </a>
+                    </td>
+
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"
+                        th:text="${#temporals.format(doc.createDate, 'yyyy/MM/dd HH:mm:ss')}"></td>
+
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        <button th:id="'download-' + ${doc.id}"
+                                th:data-file-id="${doc.id}"
+                                th:data-file-name="${doc.originalFileName}"
+                                onclick="downloadPdf(this.getAttribute('data-file-id'), this.getAttribute('data-file-name'))"
+                                class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-indigo-700 bg-indigo-100 hover:bg-indigo-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                            <i class="fas fa-download mr-2"></i>
+                            다운로드
+                        </button>
+                    </td>
+
+                </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        <div class="flex justify-center space-x-2 mt-6" th:if="${navigator != null}">
+            <div th:utext="${navigator}" class="flex space-x-1"></div>
+        </div>
+    </div>
+
+    </div>
+</div>
+</body>
+</html>

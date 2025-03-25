@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html layout:decorate="~{global/msgLayout}">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <script>
+        async function sendVerificationEmail() {
+            const email = document.getElementById('emailInput').value;
+
+            if (!email) {
+                alert("이메일을 입력하셔야 인증코드가 발송이 가능해요 ㅡ.ㅡ");
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/email/send-verification', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        receiverEmail: email
+                    }),
+                });
+
+                if (response.ok) {
+                    alert("인증코드를 메일로 발송하였습니다.");
+                } else {
+                    alert("인증코드를 메일 발송 실패하였습니다.");
+                }
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+
+        async function verifyCode() {
+            const code = document.getElementById('verificationCodeInput').value;
+
+            if (!code) {
+                alert("인증코드를 입력해주세요.");
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/email/verify-code?code=${code}`, {
+                    method: 'POST',
+                });
+
+                if (response.ok) {
+                    alert("인증이 완료되었습니다.");
+                } else {
+                    alert("인증이 실패되었습니다.");
+                }
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+    </script>
+</head>
+<body>
+<div layout:fragment="content">
+    <h1>Email Verification</h1>
+    <!-- 이메일 입력 폼 -->
+    <div>
+        <label for="emailInput">Enter your email:</label>
+        <input type="email" id="emailInput" placeholder="Email Address">
+        <button onclick="sendVerificationEmail()">Send Verification Email</button>
+    </div>
+
+    <hr>
+
+    <!-- 인증 코드 입력 폼 -->
+    <div>
+        <label for="verificationCodeInput">Enter verification code:</label>
+        <input type="text" id="verificationCodeInput" placeholder="Verification Code">
+        <button onclick="verifyCode()">Verify Code</button>
+    </div>
+</div>
+</body>
+</html>

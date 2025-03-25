@@ -1,0 +1,136 @@
+<html layout:decorate="~{global/admLayout}">
+
+<head>
+  <title>회원 관리</title>
+
+  <script type="text/javascript" th:inline="javascript">
+    function showEditModal(memberId) {
+      const form = document.getElementById('editMemberForm');
+      form.action = `/adm/member/update/${memberId}`;
+      const modal = new bootstrap.Modal(document.getElementById('editMemberModal'));
+      modal.show();
+    }
+
+    function submitEdit() {
+      document.getElementById('editMemberForm').submit();
+    }
+  </script>
+</head>
+
+<body>
+
+  <div layout:fragment="content">
+    <div class="container mt-5">
+      <h2>회원 관리</h2>
+
+      <!-- 검색 폼 -->
+      <div class="card mb-4">
+        <div class="card-body">
+          <form th:action="@{/adm/member/list}" method="get" class="row g-3">
+            <div class="col-md-3">
+              <label for="username" class="form-label">이름</label>
+              <input type="text" class="form-control" id="username" name="username" th:value="${searchDto.username}">
+            </div>
+            <div class="col-md-3">
+              <label for="fromDate" class="form-label">가입일자 (시작)</label>
+              <input type="date" class="form-control" id="fromDate" name="fromDate" th:value="${searchDto.fromDate}">
+            </div>
+            <div class="col-md-3">
+              <label for="toDate" class="form-label">가입일자 (종료)</label>
+              <input type="date" class="form-control" id="toDate" name="toDate" th:value="${searchDto.toDate}">
+            </div>
+            <div class="col-md-2">
+              <label for="roleType" class="form-label">권한</label>
+              <select class="form-select" id="roleType" name="roleType">
+                <option value="">전체</option>
+                <option value="ROLE_ADMIN" th:selected="${searchDto.roleType == 'ROLE_ADMIN'}">관리자</option>
+                <option value="ROLE_MEMBER" th:selected="${searchDto.roleType == 'ROLE_MEMBER'}">일반회원</option>
+              </select>
+            </div>
+            <div class="col-md-1">
+              <label for="useYn" class="form-label">상태</label>
+              <select class="form-select" id="useYn" name="useYn">
+                <option value="">전체</option>
+                <option value="Y" th:selected="${searchDto.useYn == 'Y'}">사용</option>
+                <option value="N" th:selected="${searchDto.useYn == 'N'}">중지</option>
+              </select>
+            </div>
+            <div class="col-12">
+              <button type="submit" class="btn btn-primary">검색</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- 회원 목록 -->
+      <div class="card">
+        <div class="card-body">
+          <table class="table">
+            <thead>
+            <tr>
+              <th>ID</th>
+              <th>이름</th>
+              <th>이메일</th>
+              <th>가입일자</th>
+              <th>권한</th>
+              <th>상태</th>
+              <th>관리</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="member : ${members}">
+              <td th:text="${member.userid}"></td>
+              <td th:text="${member.username}"></td>
+              <td th:text="${member.userEmail}"></td>
+              <td th:text="${#temporals.format(member.createDate, 'yyyy-MM-dd HH:mm')}"></td>
+              <td th:text="${member.roleType}"></td>
+              <td th:text="${member.useYn == 'Y' ? '사용' : '중지'}"></td>
+              <td>
+                <a th:href="@{/adm/member/history/{id}(id=${member.id})}" class="btn btn-sm btn-info">이력</a>
+                <button type="button" class="btn btn-sm btn-primary"
+                        th:onclick="'showEditModal(' + ${member.id} + ')'">수정</button>
+              </td>
+            </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- 회원 수정 모달 -->
+    <div class="modal fade" id="editMemberModal" tabindex="-1">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">회원 정보 수정</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <form id="editMemberForm" method="post">
+              <div class="mb-3">
+                <label for="editRoleType" class="form-label">권한</label>
+                <select class="form-select" id="editRoleType" name="roleType">
+                  <option value="ROLE_ADMIN">관리자</option>
+                  <option value="ROLE_MEMBER">일반회원</option>
+                </select>
+              </div>
+              <div class="mb-3">
+                <label for="editUseYn" class="form-label">상태</label>
+                <select class="form-select" id="editUseYn" name="useYn">
+                  <option value="Y">사용</option>
+                  <option value="N">중지</option>
+                </select>
+              </div>
+            </form>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button>
+            <button type="button" class="btn btn-primary" onclick="submitEdit()">저장</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>

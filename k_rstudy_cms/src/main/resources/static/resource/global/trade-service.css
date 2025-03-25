@@ -1,0 +1,66 @@
+/* 거래소 스타일 */
+.trade-panel {
+    display: flex;
+    gap: 20px;
+    padding: 20px;
+}
+
+.hoga-panel {
+    flex: 1;
+    min-width: 300px;
+}
+
+.order-panel {
+    flex: 1;
+    min-width: 300px;
+}
+
+/* 호가창 스타일 */
+.hoga-list {
+    height: 400px;
+    overflow-y: auto;
+}
+
+.hoga-list table {
+    width: 100%;
+}
+
+.hoga-list .price {
+    text-align: right;
+    padding: 5px 10px;
+}
+
+.hoga-list .quantity {
+    text-align: right;
+    padding: 5px 10px;
+}
+
+/* 주문창 스타일 */
+.order-form {
+    padding: 20px;
+}
+
+.form-group {
+    margin-bottom: 15px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 5px;
+}
+
+.form-group input {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+/* 매수/매도 색상 */
+.buy {
+    color: #d9534f;
+}
+
+.sell {
+    color: #337ab7;
+}

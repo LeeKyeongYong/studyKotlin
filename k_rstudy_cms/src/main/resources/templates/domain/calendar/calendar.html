@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html layout:decorate="~{global/usrLayout}">
+
+<head>
+  <title th:text="|일정|"></title>
+
+  <!-- FullCalendar CSS -->
+  <link href="https://unpkg.com/fullcalendar@6.1.15/main.min.css" rel="stylesheet" />
+  <!-- FullCalendar JavaScript -->
+  <script src="https://unpkg.com/fullcalendar@6.1.15/index.global.min.js"></script>
+
+  <style>
+    #calendar {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+  </style>
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      var calendarEl = document.getElementById('calendar');
+      var calendar = new FullCalendar.Calendar(calendarEl, { // FullCalendar 네임스페이스 사용
+        initialView: 'dayGridMonth',
+        events: {
+          url: '/v1/scalendar',  // REST API 호출하여 이벤트 가져오기
+          method: 'GET',
+          failure: function() {
+            alert('Error fetching events!');
+          }
+        },
+        eventClick: function(info) {
+          console.log("Event info: ", info);
+          window.location.href = `/calendar/view?id=${info.event.id}`;
+        }
+      });
+      calendar.render();
+    });
+
+    function createScalendar() {
+      window.location.href = '/calendar/write'; // URL을 실제 이벤트 생성 페이지로 변경
+    }
+  </script>
+</head>
+
+<body>
+<div layout:fragment="content">
+  <h1>일정 목록</h1>
+  <button onclick="createScalendar()">작성</button>
+  <div id="calendar"></div>
+</div>
+</body>
+</html>

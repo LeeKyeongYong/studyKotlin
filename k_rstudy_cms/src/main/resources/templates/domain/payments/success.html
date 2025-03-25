@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html layout:decorate="~{global/usrLayout}">
+
+<head>
+    <meta charset="UTF-8">
+    <link rel="icon" href="https://static.toss.im/icons/png/4x/icon-toss-logo.png"/>
+    <link rel="stylesheet" type="text/css" href="/resource/global/style.css"/>
+    <meta http-equiv="X-UA-Compatible" content="IE=edge"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title th:text="|토스페이먼츠 결제하기|"></title>
+    <script type="text/javascript">
+        document.addEventListener('DOMContentLoaded', async function() {
+            const urlParamsPay = new URLSearchParams(window.location.search);
+
+            const paymentKeyElement = document.getElementById("paymentKey");
+            const orderIdElement = document.getElementById("orderId");
+            const amountElement = document.getElementById("amount");
+
+            if (orderIdElement && amountElement && paymentKeyElement) {
+                orderIdElement.textContent = "주문번호: " + urlParamsPay.get("orderId");
+                amountElement.textContent = "결제 금액: " + urlParamsPay.get("amount");
+                paymentKeyElement.textContent = "paymentKey: " + urlParamsPay.get("paymentKey");
+            }
+
+            async function confirm() {
+                const token = localStorage.getItem('accessToken');
+                var requestData = {
+                    paymentKey: urlParamsPay.get("paymentKey"),
+                    orderId: urlParamsPay.get("orderId"),
+                    amount: urlParamsPay.get("amount"),
+                };
+
+                try {
+                    const response = await fetch("/api/v1/payments/confirm", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "Authorization": `Bearer ${token}`, // JWT 토큰 추가
+                            "X-CSRF-TOKEN": document.querySelector('meta[name="_csrf"]').content
+                        },
+                        body: JSON.stringify(requestData),
+                    });
+
+                    // 응답 전체를 로그로 확인
+                    console.log("Response status:", response.status);
+                    const json = await response.json();
+                    console.log("Response body:", json);
+
+                    if (!response.ok) {
+                        // 에러 응답 구조 확인
+                        console.log("Error details:", {
+                            code: json.code,
+                            message: json.message,
+                            fullResponse: json
+                        });
+                        const errorCode = json.code || 'unknown_error';
+                        window.location.href = `/payments/fail?message=${encodeURIComponent(json.message)}&code=${errorCode}`;
+                        return;
+                    }
+                    console.log("Success response:", json);
+
+                    // 결제 성공 시 상세 페이지로 이동
+                    window.location.href = `/payments/detail/${requestData.paymentKey}`;
+
+                } catch (error) {
+                    console.error("결제 처리 중 오류 발생:", error);
+                    window.location.href = `/payments/fail?message=${encodeURIComponent("인증 오류가 발생했습니다.")}&code=AUTH_ERROR`;
+                }
+            }
+
+            confirm();
+        });
+    </script>
+</head>
+<body>
+<div layout:fragment="content">
+    <div class="result wrapper">
+        <div class="box_section">
+            <h2 style="padding: 20px 0px 10px 0px">
+                <img width="35px" src="https://static.toss.im/3d-emojis/u1F389_apng.png"/>
+                결제 성공
+            </h2>
+            <p id="paymentKey"></p>
+            <p id="orderId"></p>
+            <p id="amount"></p>
+        </div>
+    </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,444 @@
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/default}">
+  <head>
+    <style>
+      .hoga-container {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        padding: 1rem;
+        background: #f8f9fa;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      }
+
+      .current-price-container {
+        text-align: center;
+        padding: 1rem;
+        background: #fff;
+        border-radius: 4px;
+        margin: 1rem 0;
+      }
+
+      .current-price {
+        font-size: 2rem;
+        font-weight: bold;
+        color: #212529;
+      }
+
+      .currency {
+        font-size: 1rem;
+        color: #6c757d;
+        margin-left: 0.5rem;
+      }
+
+      .order-form-container {
+        padding: 1rem;
+        background: #fff;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      }
+
+      .table {
+        margin-bottom: 0;
+      }
+
+      .table td {
+        padding: 0.5rem;
+        vertical-align: middle;
+      }
+
+      .text-danger {
+        color: #dc3545 !important;
+      }
+
+      .text-primary {
+        color: #007bff !important;
+      }
+
+      .btn-group {
+        margin-top: 1rem;
+      }
+
+      .form-group {
+        margin-bottom: 1rem;
+      }
+
+      .input-group-text {
+        background-color: #e9ecef;
+      }
+
+      .invalid-feedback {
+        display: none;
+        width: 100%;
+        margin-top: 0.25rem;
+        font-size: 80%;
+        color: #dc3545;
+      }
+
+      .was-validated .form-control:invalid ~ .invalid-feedback {
+        display: block;
+      }
+    </style>
+    <script type="text/javascript">
+      $(document).ready(function() {
+        hogaStockInfofunc();
+        stockTransaction();
+        grid1.sort('strTime', false, false);
+      });
+
+      // 15초마다 갱신
+      setInterval(function() {
+        hogaStockInfofunc();
+        stockTransaction();
+        grid1.sort('strTime', false, false);
+      }, 15000);
+    </script>
+  </head>
+  <body>
+    <div layout:fragment="content" class="right_col container mx-auto p-4" style="background-color: #f7fafc;">
+      <!-- Hidden Fields -->
+      <input type="hidden" id="hiddenName" th:value="${coin?.name ?: '비트코인'}"/>
+      <input type="hidden" id="hiddenCode" th:value="${coin?.code ?: 'BTC'}"/>
+      <input type="hidden" id="hiddenPrice" th:value="${coin?.price ?: 0}"/>
+
+      <!-- 왼쪽 패널: 호가 정보 -->
+      <div class="col-md-5 col-sm-5 col-xs-12">
+        <div class="x_panel">
+          <div class="current-price-container">
+            <span class="current-price" th:text="${#numbers.formatDecimal(coin?.price, 0, 'COMMA', 0, 'POINT')}"></span>
+            <span class="currency">KRW</span>
+          </div>
+
+          <div class="buy-orders">
+            <table class="table table-hover">
+              <tbody>
+              <tr th:each="hoga : ${hogaList.buyHoga}"
+                  class="buy-order"
+                  th:data-price="${hoga.price}"
+                  th:data-quantity="${hoga.quantity}">
+                <td class="price text-primary" th:text="${#numbers.formatDecimal(hoga.price, 0, 'COMMA', 0, 'POINT')}"></td>
+                <td class="quantity" th:text="${#numbers.formatDecimal(hoga.quantity, 0, 'COMMA', 8, 'POINT')}"></td>
+                <td class="total" th:text="${#numbers.formatDecimal(hoga.price * hoga.quantity, 0, 'COMMA', 0, 'POINT')}"></td>
+              </tr>
+              </tbody>
+            </table>
+          </div>
+
+        </div>
+
+        <!-- 체결 현황 -->
+        <div class="x_panel">
+          <div class="x_title">
+            <h2 style="font-size:25px; color:#000; font-weight:bold;">체결현황</h2>
+            <div class="clearfix"></div>
+          </div>
+          <div class="x_content">
+            <div id="realTimeStockData"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 중앙 패널: 코인 리스트 & 차트 -->
+      <div class="col-md-4 col-sm-4 col-xs-12">
+        <div class="x_panel">
+          <div class="x_title">
+            <h2 style="font-size:25px; color:#000; font-weight:bold;">종목리스트</h2>
+            <div class="clearfix"></div>
+          </div>
+          <div class="x_content">
+            <div id="totalStockList"></div>
+          </div>
+        </div>
+
+        <div class="x_panel">
+          <div class="x_title">
+            <h2 style="font-size:25px; color:#000; font-weight:bold;">미니차트</h2>
+            <div class="clearfix"></div>
+          </div>
+          <div class="x_content">
+            <div id="chartdiv"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 오른쪽 패널: 주문 양식 -->
+      <div class="col-md-3 col-sm-3 col-xs-12">
+        <div class="x_panel">
+          <div class="x_title">
+            <h2 style="font-size:25px; color:#000; font-weight:bold;">매수/매도처리</h2>
+            <div class="clearfix"></div>
+          </div>
+
+          <div class="x_content" style="color:#000">
+            <!-- 매수/매도 탭 -->
+            <ul class="nav nav-pills nav-justified" style="background-color:#8a99b99e;">
+              <li class="active">
+                <a data-toggle="tab" href="#buy" style="color:#fff;">매수</a>
+              </li>
+              <li>
+                <a data-toggle="tab" href="#sell" style="color:#fff;">매도</a>
+              </li>
+            </ul>
+
+            <div class="tab-content">
+              <!-- 매수 탭 -->
+              <div id="buy" class="tab-pane fade in active">
+                <form th:action="@{/api/v1/orders/buy}"
+                      method="post"
+                      class="order-form"
+                      id="buyForm">
+
+                  <input type="hidden" name="userId" th:value="${member.userid}"/>
+
+                  <!-- 코인명 -->
+                  <div class="field item form-group" style="padding:10px;">
+                    <label class="col-form-label col-md-4 col-sm-4 col-xs-4 label-align">
+                      코인명<span class="required">:</span>
+                    </label>
+                    <div class="col-md-8 col-sm-8">
+                      <input class="form-control"
+                             id="buycoinName"
+                             name="coinName"
+                             type="text"
+                             th:value="${coin?.name}"
+                             placeholder="종목을 클릭하세요."
+                             readonly/>
+                    </div>
+                  </div>
+
+                  <!-- 코인코드 -->
+                  <div class="field item form-group" style="padding:10px;">
+                    <label class="col-form-label col-md-4 col-sm-4 col-xs-4 label-align">
+                      코인코드<span class="required">:</span>
+                    </label>
+                    <div class="col-md-8 col-sm-8">
+                      <input class="form-control"
+                             id="buycoinCode"
+                             name="coinCode"
+                             type="text"
+                             th:value="${coin?.code}"
+                             placeholder="종목을 클릭하세요."
+                             readonly/>
+                    </div>
+                  </div>
+
+                  <!-- 주문가격 -->
+                  <div class="order-form-container">
+                    <form id="orderForm" class="needs-validation" novalidate>
+                      <div class="form-group">
+                        <label for="orderPrice">주문가격</label>
+                        <div class="input-group">
+                          <input type="number"
+                                 class="form-control price-input"
+                                 id="orderPrice"
+                                 name="price"
+                                 step="0.00000001"
+                                 required>
+                          <div class="input-group-append">
+                            <span class="input-group-text">KRW</span>
+                          </div>
+                          <div class="invalid-feedback">
+                            유효한 가격을 입력해주세요.
+                          </div>
+                        </div>
+                      </div>
+
+                      <div class="form-group">
+                        <label for="orderQuantity">주문수량</label>
+                        <div class="input-group">
+                          <input type="number"
+                                 class="form-control quantity-input"
+                                 id="orderQuantity"
+                                 name="quantity"
+                                 step="0.00000001"
+                                 required>
+                          <div class="invalid-feedback">
+                            유효한 수량을 입력해주세요.
+                          </div>
+                        </div>
+                      </div>
+
+                      <div class="form-group">
+                        <label>주문총액</label>
+                        <div class="input-group">
+                          <input type="text"
+                                 class="form-control"
+                                 id="orderTotal"
+                                 readonly>
+                          <div class="input-group-append">
+                            <span class="input-group-text">KRW</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div class="btn-group d-flex">
+                        <button type="submit" class="btn btn-success flex-fill">매수</button>
+                        <button type="button" class="btn btn-danger flex-fill">매도</button>
+                      </div>
+                    </form>
+                  </div>
+                  <!-- 수량 -->
+                  <div class="field item form-group" style="padding:10px;">
+                    <label class="col-form-label col-md-4 col-sm-4 col-xs-4 label-align">
+                      수량<span class="required">:</span>
+                    </label>
+                    <div class="col-md-8 col-sm-8">
+                      <input class="form-control quantity-input"
+                             id="buystockCnt"
+                             name="quantity"
+                             type="number"
+                             step="0.00000001"
+                             placeholder="0"
+                             required/>
+                    </div>
+                  </div>
+
+                  <!-- 주문총액 -->
+                  <div class="field item form-group" style="padding:10px;">
+                    <label class="col-form-label col-md-4 col-sm-4 col-xs-4 label-align">
+                      주문총액<span class="required">:</span>
+                    </label>
+                    <div class="col-md-8 col-sm-8">
+                      <input class="form-control"
+                             id="buytotalMoney"
+                             name="total"
+                             type="text"
+                             value="0"
+                             data-bind="total"
+                             readonly/>
+                    </div>
+                  </div>
+
+                  <!-- 버튼 -->
+                  <div class="modal-footer">
+                    <button type="submit"
+                            class="btn btn-round btn-danger"
+                            style="width:50%">매수</button>
+                    <button type="button"
+                            class="btn btn-round btn-dark returnBtn"
+                            style="width:30%">초기화</button>
+                  </div>
+                </form>
+              </div>
+
+              <!-- 매도 탭 -->
+              <div id="sell" class="tab-pane fade">
+                <form th:action="@{/api/v1/orders/sell}"
+                      method="post"
+                      class="order-form"
+                      id="sellForm">
+
+                  <input type="hidden" name="userId" th:value="${member.userid}"/>
+
+                  <!-- 코인명 -->
+                  <div class="field item form-group" style="padding:10px;">
+                    <label class="col-form-label col-md-4 col-sm-4 col-xs-4 label-align">
+                      코인명<span class="required">:</span>
+                    </label>
+                    <div class="col-md-8 col-sm-8">
+                      <input class="form-control"
+                             id="sellcoinName"
+                             name="coinName"
+                             type="text"
+                             th:value="${coin?.name}"
+                             placeholder="종목을 클릭하세요."
+                             readonly/>
+                    </div>
+                  </div>
+
+                  <!-- 코인코드 -->
+                  <div class="field item form-group" style="padding:10px;">
+                    <label class="col-form-label col-md-4 col-sm-4 col-xs-4 label-align">
+                      코인코드<span class="required">:</span>
+                    </label>
+                    <div class="col-md-8 col-sm-8">
+                      <input class="form-control"
+                             id="sellcoinCode"
+                             name="coinCode"
+                             type="text"
+                             th:value="${coin?.code}"
+                             placeholder="종목을 클릭하세요."
+                             readonly/>
+                    </div>
+                  </div>
+
+                  <!-- 주문가격 -->
+                  <div class="field item form-group" style="padding:10px;">
+                    <label class="col-form-label col-md-4 col-sm-4 col-xs-4 label-align">
+                      주문가격<span class="required">:</span>
+                    </label>
+                    <div class="col-md-8 col-sm-8">
+                      <input class="form-control price-input"
+                             id="sellPrice"
+                             name="price"
+                             type="number"
+                             step="0.00000001"
+                             placeholder="0"
+                             required/>
+                    </div>
+                  </div>
+
+                  <!-- 수량 -->
+                  <div class="field item form-group" style="padding:10px;">
+                    <label class="col-form-label col-md-4 col-sm-4 col-xs-4 label-align">
+                      수량<span class="required">:</span>
+                    </label>
+                    <div class="col-md-8 col-sm-8">
+                      <input class="form-control quantity-input"
+                             id="sellstockCnt"
+                             name="quantity"
+                             type="number"
+                             step="0.00000001"
+                             placeholder="0"
+                             required/>
+                    </div>
+                  </div>
+
+                  <!-- 주문총액 -->
+                  <div class="field item form-group" style="padding:10px;">
+                    <label class="col-form-label col-md-4 col-sm-4 col-xs-4 label-align">
+                      주문총액<span class="required">:</span>
+                    </label>
+                    <div class="col-md-8 col-sm-8">
+                      <input class="form-control"
+                             id="selltotalMoney"
+                             name="total"
+                             type="text"
+                             value="0"
+                             data-bind="total"
+                             readonly/>
+                    </div>
+                  </div>
+
+                  <!-- 버튼 -->
+                  <div class="modal-footer">
+                    <button type="submit"
+                            class="btn btn-round btn-primary"
+                            style="width:50%">매도</button>
+                    <button type="button"
+                            class="btn btn-round btn-dark returnBtn"
+                            style="width:30%">초기화</button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 체결강도 차트 -->
+        <div class="x_panel">
+          <div class="x_title">
+            <h2 style="font-size:25px; color:#000; font-weight:bold;">체결강도차트</h2>
+            <div class="clearfix"></div>
+          </div>
+          <div class="x_content">
+            <div id="demoChart"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    </div>
+  </body>
+</html>

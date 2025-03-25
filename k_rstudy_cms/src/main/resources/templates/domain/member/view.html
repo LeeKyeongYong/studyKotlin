@@ -1,0 +1,47 @@
+<html layout:decorate="~{global/usrLayout}">
+<head>
+    <title>회원 상세보기</title>
+    <style type="text/css">
+        body { font-size: 12px; }
+        .image { width: 200px; height: 200px; }
+    </style>
+</head>
+<body>
+<div layout:fragment="content">
+    <h3>회원 상세 정보</h3>
+    <hr />
+    <table border="1">
+        <tr>
+            <td width="100">
+                <img alt="사진"
+                     th:if="${member.accountType != 'WEB'}"
+                     th:src="${member.profileImgUrl}"
+                     class="image" />
+                <img alt="사진"
+                     th:if="${member.accountType == 'WEB'}"
+                     th:src="@{/member/image/{id}(id=${member.id})}"
+                     class="image" />
+            </td>
+            <td width="200" valign="top">
+                <ul>
+                    <li>번호 : <span th:text="${member.id}"></span></li>
+                    <li>아이디 : <span th:text="${member.userid}"></span></li>
+                    <li>이름 : <span th:text="${member.username}"></span></li>
+                    <li>이메일 : <span th:text="${member.userEmail}"></span></li>
+                    <li>사용여부 :
+                        <select name="useYn" th:value="${member.useYn}">
+                            <option value="Y" th:selected="${member.useYn == 'Y'}">사용</option>
+                            <option value="N" th:selected="${member.useYn == 'N'}">미사용</option>
+                        </select>
+                    </li>
+                    <li><a th:href="@{/member/view_pdf(id=${member.id})}">[PDF 파일로 출력]</a></li>
+                    <li><a th:href="@{/member/remove(id=${member.id})}">[삭제]</a></li>
+                </ul>
+            </td>
+        </tr>
+    </table>
+    <hr />
+    <a th:href="@{/adm}">첫페이지로</a>
+</div>
+</body>
+</html>

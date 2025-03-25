@@ -1,0 +1,295 @@
+<html layout:decorate="~{global/msgLayout}">
+<head>
+    <link rel="icon" href="data:,">
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <th:block layout:fragment="style">
+        <style>
+            .container {
+                width: 90%;
+                margin: 20px auto;
+                padding: 20px;
+            }
+            .chart-container {
+                margin: 20px 0;
+                height: 400px;
+                background: white;
+                padding: 20px;
+                border-radius: 8px;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            }
+            .search-form {
+                margin: 20px 0;
+                padding: 15px;
+                background: white;
+                border-radius: 8px;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            }
+            .search-form form {
+                display: flex;
+                gap: 15px;
+                align-items: center;
+            }
+            .search-form label {
+                display: flex;
+                flex-direction: column;
+                gap: 5px;
+            }
+            table {
+                width: 100%;
+                border-collapse: collapse;
+                margin: 20px 0;
+                background: white;
+                border-radius: 8px;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            }
+            th, td {
+                padding: 12px;
+                text-align: left;
+                border-bottom: 1px solid #ddd;
+            }
+            th {
+                background-color: #f8f9fa;
+                font-weight: 600;
+            }
+            tr:hover {
+                background-color: #f8f9fa;
+            }
+            button {
+                padding: 8px 16px;
+                background: #4CAF50;
+                color: white;
+                border: none;
+                border-radius: 4px;
+                cursor: pointer;
+            }
+            button:hover {
+                background: #45a049;
+            }
+            .btn {
+                padding: 8px 16px;
+                background: #6c757d;
+                color: white;
+                text-decoration: none;
+                border-radius: 4px;
+                margin-left: 10px;
+            }
+            .btn:hover {
+                background: #5a6268;
+            }
+            input[type="datetime-local"] {
+                padding: 8px;
+                border: 1px solid #ddd;
+                border-radius: 4px;
+                font-size: 14px;
+            }
+        </style>
+    </th:block>
+    <th:block layout:fragment="script-body">
+        <script type="text/javascript" th:inline="javascript">
+            /*<![CDATA[*/
+            // 서버에서 전달받은 데이터
+            const metrics = /*[[${metrics}]]*/ [];
+            console.log('Initial metrics:', metrics);
+            let cpuChart, memoryChart;
+
+            // 차트 초기화 함수
+            function initializeCharts() {
+                // 차트 공통 옵션
+                const chartOptions = {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            type: 'time',
+                            time: {
+                                unit: 'minute',
+                                displayFormats: {
+                                    minute: 'HH:mm:ss'
+                                }
+                            },
+                            title: {
+                                display: true,
+                                text: 'Time'
+                            }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            title: {
+                                display: true,
+                                text: 'Percentage (%)'
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'top'
+                        }
+                    }
+                };
+
+                // CPU 차트
+                cpuChart = new Chart(document.getElementById('cpuChart'), {
+                    type: 'line',
+                    data: {
+                        datasets: [{
+                            label: 'CPU Usage (%)',
+                            data: metrics.map(m => ({
+                                x: new Date(m.timestamp),
+                                y: m.cpuUsage
+                            })),
+                            borderColor: 'rgb(75, 192, 192)',
+                            tension: 0.1
+                        }]
+                    },
+                    options: chartOptions
+                });
+
+                // Memory 차트
+                memoryChart = new Chart(document.getElementById('memoryChart'), {
+                    type: 'line',
+                    data: {
+                        datasets: [{
+                            label: 'Memory Usage (%)',
+                            data: metrics.map(m => ({
+                                x: new Date(m.timestamp),
+                                y: (m.memoryUsed / m.memoryTotal) * 100
+                            })),
+                            borderColor: 'rgb(255, 99, 132)',
+                            tension: 0.1
+                        }]
+                    },
+                    options: chartOptions
+                });
+            }
+
+            // WebSocket 연결 및 데이터 수신 처리
+            function connectWebSocket() {
+                const socket = new SockJS('/ws/monitoring');
+                const stompClient = Stomp.over(socket);
+
+                stompClient.connect({}, function(frame) {
+                    console.log('Connected: ' + frame);
+
+                    stompClient.subscribe('/topic/metrics', function(message) {
+                        const newMetric = JSON.parse(message.body);
+                        updateCharts(newMetric);
+                        updateTable(newMetric);
+                    });
+                }, function(error) {
+                    console.error('STOMP error:', error);
+                    // 3초 후 재연결 시도
+                    setTimeout(connectWebSocket, 3000);
+                });
+
+                socket.onerror = function(error) {
+                    console.error('SockJS error:', error);
+                };
+            }
+
+            // 차트 업데이트 함수
+            function updateCharts(newMetric) {
+                // CPU 차트 업데이트
+                cpuChart.data.datasets[0].data.push({
+                    x: new Date(newMetric.timestamp),
+                    y: newMetric.cpuUsage
+                });
+                if (cpuChart.data.datasets[0].data.length > 60) {
+                    cpuChart.data.datasets[0].data.shift();
+                }
+                cpuChart.update();
+
+                // Memory 차트 업데이트
+                memoryChart.data.datasets[0].data.push({
+                    x: new Date(newMetric.timestamp),
+                    y: (newMetric.memoryUsed / newMetric.memoryTotal) * 100
+                });
+                if (memoryChart.data.datasets[0].data.length > 60) {
+                    memoryChart.data.datasets[0].data.shift();
+                }
+                memoryChart.update();
+            }
+
+            // 테이블 업데이트 함수
+            function updateTable(newMetric) {
+                const tbody = document.querySelector('table tbody');
+                const row = document.createElement('tr');
+
+                row.innerHTML = `
+                    <td>${moment(newMetric.timestamp).format('YYYY-MM-DD HH:mm:ss')}</td>
+                    <td>${newMetric.cpuUsage.toFixed(2)}</td>
+                    <td>${(newMetric.memoryTotal/1024/1024/1024).toFixed(2)}</td>
+                    <td>${(newMetric.memoryUsed/1024/1024/1024).toFixed(2)}</td>
+                    <td>${(newMetric.memoryFree/1024/1024/1024).toFixed(2)}</td>
+                `;
+
+                tbody.insertBefore(row, tbody.firstChild);
+                if (tbody.children.length > 60) {
+                    tbody.removeChild(tbody.lastChild);
+                }
+            }
+
+            // 페이지 로드 시 실행
+            document.addEventListener('DOMContentLoaded', function() {
+                initializeCharts();
+                connectWebSocket();
+            });
+            /*]]>*/
+        </script>
+    </th:block>
+</head>
+<body>
+<div layout:fragment="content" class="container">
+    <h1>System Monitoring History</h1>
+
+    <div class="search-form">
+        <form th:action="@{/monitoring/history}" method="get">
+            <label>
+                Start Date:
+                <input type="datetime-local"
+                       name="startDate"
+                       th:value="${#temporals.format(param.startDate?:null, 'yyyy-MM-dd''T''HH:mm')}"
+                       required>
+            </label>
+            <label>
+                End Date:
+                <input type="datetime-local"
+                       name="endDate"
+                       th:value="${#temporals.format(param.endDate?:null, 'yyyy-MM-dd''T''HH:mm')}"
+                       required>
+            </label>
+            <button type="submit">Search</button>
+            <a th:href="@{/monitoring}" class="btn">Back to Dashboard</a>
+        </form>
+    </div>
+
+    <div class="chart-container">
+        <canvas id="cpuChart"></canvas>
+    </div>
+    <div class="chart-container">
+        <canvas id="memoryChart"></canvas>
+    </div>
+
+    <table>
+        <thead>
+        <tr>
+            <th>Timestamp</th>
+            <th>CPU Usage (%)</th>
+            <th>Memory Total (GB)</th>
+            <th>Memory Used (GB)</th>
+            <th>Memory Free (GB)</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr th:each="metric : ${metrics}">
+            <td th:text="${#temporals.format(metric.timestamp, 'yyyy-MM-dd HH:mm:ss')}"></td>
+            <td th:text="${#numbers.formatDecimal(metric.cpuUsage, 1, 2)}"></td>
+            <td th:text="${#numbers.formatDecimal(metric.memoryTotal/1024/1024/1024, 1, 2)}"></td>
+            <td th:text="${#numbers.formatDecimal(metric.memoryUsed/1024/1024/1024, 1, 2)}"></td>
+            <td th:text="${#numbers.formatDecimal(metric.memoryFree/1024/1024/1024, 1, 2)}"></td>
+        </tr>
+        </tbody>
+    </table>
+</div>
+</body>
+</html>

@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>팝업 미리보기</title>
+    <style th:inline="text">
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: rgba(0, 0, 0, 0.5);
+        }
+
+        .popup-container {
+            background-color: [(${template.backgroundColor})];
+            border: [(${template.borderStyle})];
+            width: [(${template.width})]px;
+            height: [(${template.height})]px;
+            position: relative;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .popup-header {
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-bottom: 1px solid #dee2e6;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .popup-content {
+            padding: 20px;
+            overflow: auto;
+            max-height: calc(100% - 60px);
+        }
+
+        .close-button {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 0 8px;
+        }
+    </style>
+</head>
+
+<body>
+<div class="popup-container">
+    <div class="popup-header">
+        <span>미리보기</span>
+        <button class="close-button" onclick="window.close()">&times;</button>
+    </div>
+    <div class="popup-content">
+        <!-- 템플릿 내용 표시 -->
+        <div th:if="${template.content}" th:utext="${template.content}">
+            <!-- 템플릿 내용이 여기에 표시됩니다 -->
+        </div>
+        <div th:unless="${template.content}" style="text-align: center; color: #666;">
+            <p>템플릿 크기: [[${template.width}]] x [[${template.height}]]</p>
+            <p>배경색: [[${template.backgroundColor}]]</p>
+            <p>테두리: [[${template.borderStyle}]]</p>
+        </div>
+    </div>
+</div>
+</body>
+</html>

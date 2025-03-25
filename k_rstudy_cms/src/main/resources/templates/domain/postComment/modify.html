@@ -1,0 +1,66 @@
+<html layout:decorate="~{global/usrLayout}">
+
+<head>
+  <title>댓글 수정</title>
+</head>
+
+<body>
+<div layout:fragment="content">
+  <h1>댓글 수정</h1>
+
+  <h3>글 내용</h3>
+
+  <div>
+    <h3>조회수</h3>
+    <div th:text="${#numbers.formatInteger(post.hit, 3, 'COMMA')}"></div>
+  </div>
+
+  <div>
+    <h3>추천수</h3>
+    <div th:text="${#numbers.formatInteger(post.likes.size, 3, 'COMMA')}"></div>
+  </div>
+
+  <div>
+    <h3>공개여부</h3>
+    <div th:text="${post.published ? '공개' : '비공개'}"></div>
+  </div>
+
+  <div>
+    <h3>제목</h3>
+    <div th:text="${post.title}"></div>
+  </div>
+
+  <div>
+    <h3>내용</h3>
+    <div style="white-space: pre-wrap;" th:text="${post.body}"></div>
+  </div>
+
+  <script>
+    function submitModifyForm(form) {
+      form.body.value = form.body.value.trim();
+
+      if (form.body.value.length == 0) {
+        toastWarning('내용을 입력해주세요.');
+        form.body.focus();
+        return;
+      }
+
+      form.submit();
+    }
+  </script>
+
+  <h1>댓글 수정 폼</h1>
+
+  <form th:action method="POST" onsubmit="submitModifyForm(this); return false;">
+    <input type="hidden" name="_method" value="PUT">
+    <div>
+      <label>내용</label>
+      <textarea name="body" th:text="${postComment.body}"></textarea>
+    </div>
+
+    <button type="submit">댓글수정</button>
+  </form>
+</div>
+</body>
+
+</html>

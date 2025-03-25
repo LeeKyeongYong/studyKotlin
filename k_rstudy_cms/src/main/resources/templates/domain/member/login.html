@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>로그인</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css">
+</head>
+<body>
+
+<div layout:fragment="content">
+    <h1>로그인</h1>
+
+    <script>
+        function submitLoginForm(form) {
+            form.username.value = form.username.value.trim();
+
+            if (form.username.value.length === 0) {
+                alert('사용자 ID를 입력해주세요.');
+                form.username.focus();
+                return;
+            }
+
+            form.password.value = form.password.value.trim();
+
+            if (form.password.value.length === 0) {
+                alert('비밀번호를 입력해주세요.');
+                form.password.focus();
+                return;
+            }
+
+            form.submit();
+        }
+
+        // toastr 설정
+        toastr.options = {
+            showDuration: 300,
+            hideDuration: 300,
+            timeOut: 3000,
+            extendedTimeOut: 1000
+        };
+
+        function msgInfo(message) {
+            toastr.info(message);
+        }
+
+        function msgError(message) {
+            toastr.error(message);
+        }
+
+        // 수정된 소셜 로그인 함수
+        function socialLogin(providerTypeCode) {
+            // Spring Security OAuth2 로그인 엔드포인트로 직접 리다이렉트
+            window.location.href = `/oauth2/authorization/${providerTypeCode}`;
+        }
+    </script>
+
+    <form th:action method="POST" onSubmit="submitLoginForm(this); return false;">
+        <div>
+            <label>사용자 ID</label>
+            <input type="text" name="username">
+        </div>
+
+        <div>
+            <label>비밀번호</label>
+            <input type="password" name="password">
+        </div>
+
+        <button type="submit">로그인</button>
+    </form>
+
+    <br/>
+
+    <div class="social-login-buttons">
+        <!-- 카카오 로그인 -->
+        <div class="flex-grow flex items-center justify-center">
+            <a href="#" onclick="socialLogin('kakao'); return false;" class="btn btn-kakao">
+                <i class="fa-solid fa-comment"></i>
+                카카오로 3초만에 시작하기
+            </a>
+        </div>
+
+        네이버 로그인
+        <div class="flex-grow flex justify-center">
+            <a href="#" onclick="socialLogin('naver'); return false;" class="btn btn-naver">
+                <i class="fa-solid fa-comment"></i>
+                네이버로 3초만에 시작하기
+            </a>
+        </div>
+
+         구글 로그인
+        <div class="flex-grow flex justify-center">
+            <a href="#" onclick="socialLogin('google'); return false;" class="btn btn-google">
+                <i class="fa-solid fa-comment"></i>
+                구글로 3초만에 시작하기
+            </a>
+        </div>
+
+    </div>
+    <div>
+        <a href="/member/find">
+            아이디/비밀번호 찾기
+        </a>
+    </div>
+</div>
+
+</body>
+</html>

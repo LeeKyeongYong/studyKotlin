@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html layout:decorate="~{global/usrLayout}">
+
+<head>
+    <meta charset="UTF-8">
+    <link rel="icon" href="https://static.toss.im/icons/png/4x/icon-toss-logo.png"/>
+    <link rel="stylesheet" type="text/css" href="/resource/global/style.css"/>
+    <meta http-equiv="X-UA-Compatible" content="IE=edge"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title th:text="|토스페이먼츠 결제하기|"></title>
+    <script type="text/javascript">
+        document.addEventListener('DOMContentLoaded', function() {
+            const urlParamsFail = new URLSearchParams(window.location.search);
+            const codeElement = document.getElementById("code");
+            const messageElement = document.getElementById("message");
+
+            const code = urlParamsFail.get("code") || "undefined";
+            const message = urlParamsFail.get("message") || "알 수 없는 오류가 발생했습니다.";
+
+            if (codeElement) {
+                codeElement.textContent = "에러코드: " + code;
+            }
+            if (messageElement) {
+                messageElement.textContent = "실패 사유: " + message;
+            }
+        });
+    </script>
+</head>
+<body>
+<div layout:fragment="content">
+    <div>
+        <div class="result wrapper">
+            <div class="box_section">
+                <h2 style="padding:20px 0px 10px 0px">
+                    <img width="25px" src="https://static.toss.im/3d-emojis/u1F6A8-apng.png"/>
+                    결제 실패
+                </h2>
+                <p id="code"></p>
+                <p id="message"></p>
+            </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

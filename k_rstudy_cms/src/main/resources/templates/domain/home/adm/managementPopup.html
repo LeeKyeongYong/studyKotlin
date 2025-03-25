@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html layout:decorate="~{global/admLayout}">
+<head>
+    <title>팝업 관리</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <style>
+        .preview-popup {
+            position: fixed;
+            display: none;
+            z-index: 1000;
+            background: white;
+            box-shadow: 0 0 10px rgba(0,0,0,0.3);
+        }
+
+        /* 이미지 팝업 스타일 */
+        .image-popup {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            z-index: 2000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .image-popup img {
+            max-width: 90%;
+            max-height: 90vh;
+            object-fit: contain;
+        }
+
+        .image-popup .close-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            color: white;
+            font-size: 30px;
+            cursor: pointer;
+        }
+
+        .thumbnail {
+            width: 64px;
+            height: 64px;
+            object-fit: cover;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .thumbnail:hover {
+            transform: scale(1.05);
+        }
+
+        /* 기존 스타일 유지 */
+        .empty-state {
+            text-align: center;
+            padding: 4rem 2rem;
+            background: #f9fafb;
+            border-radius: 0.5rem;
+            border: 2px dashed #e5e7eb;
+        }
+
+        .empty-state-icon {
+            font-size: 3rem;
+            color: #9ca3af;
+            margin-bottom: 1rem;
+        }
+
+        .btn-primary {
+            background-color: #3b82f6;
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 0.375rem;
+            transition: all 0.2s;
+        }
+
+        .btn-primary:hover {
+            background-color: #2563eb;
+        }
+
+        .stats-card {
+            background: white;
+            border-radius: 0.5rem;
+            padding: 1.5rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            margin-bottom: 1.5rem;
+        }
+
+        .stats-number {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #1f2937;
+        }
+    </style>
+
+    <script type="text/javascript">
+        let deviceChart, closeChart;
+        let charts = {
+            device: null,
+            close: null
+        };
+
+        function initializeCharts() {
+            // 이전 차트 제거
+            if (charts.device) charts.device.destroy();
+            if (charts.close) charts.close.destroy();
+
+            // 디바이스 차트 초기화
+            charts.device = new Chart(document.getElementById('deviceChart'), {
+                type: 'doughnut',
+                data: {
+                    labels: ['데스크톱', '모바일', '태블릿'],
+                    datasets: [{
+                        data: [0, 0, 0],
+                        backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+
+            // 종료 유형 차트 초기화
+            charts.close = new Chart(document.getElementById('closeTypeChart'), {
+                type: 'doughnut',
+                data: {
+                    labels: ['일반', '자동', '오늘 하루 보지 않기'],
+                    datasets: [{
+                        data: [0, 0, 0],
+                        backgroundColor: ['#4BC0C0', '#FF9F40', '#9966FF']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+        }
+
+        async function loadStatistics(popupId) {
+            try {
+                const response = await fetch(`/api/admin/popups/${popupId}/statistics`);
+                if (!response.ok) throw new Error('통계 데이터를 불러오는데 실패했습니다.');
+
+                const data = await response.json();
+
+                // 기본 통계 업데이트
+                document.getElementById('stats-views').textContent = data.totalViews.toLocaleString();
+                document.getElementById('stats-ctr').textContent = `${data.ctr.toFixed(2)}%`;
+                document.getElementById('stats-duration').textContent = `${data.avgDuration.toFixed(1)}초`;
+
+                // 차트 데이터 업데이트
+                deviceChart.data.datasets[0].data = [
+                    data.deviceStats.DESKTOP || 0,
+                    data.deviceStats.MOBILE || 0,
+                    data.deviceStats.TABLET || 0
+                ];
+                deviceChart.update();
+
+                closeChart.data.datasets[0].data = [
+                    data.closeStats.NORMAL || 0,
+                    data.closeStats.AUTO || 0,
+                    data.closeStats.TODAY || 0
+                ];
+                closeChart.update();
+
+                // 모달 표시
+                document.getElementById('statistics-modal').classList.remove('hidden');
+
+            } catch (error) {
+                console.error('Statistics error:', error);
+                alert('통계를 불러오는 중 오류가 발생했습니다.');
+            }
+        }
+
+        // 통계 기록 함수들
+        async function recordView(popupId, deviceType) {
+            try {
+                await fetch(`/api/admin/popups/${popupId}/record/view?type=${deviceType}`, {
+                    method: 'POST'
+                });
+            } catch (error) {
+                console.error('View record error:', error);
+            }
+        }
+
+        async function recordClick(popupId) {
+            try {
+                await fetch(`/api/admin/popups/${popupId}/record/click`, {
+                    method: 'POST'
+                });
+            } catch (error) {
+                console.error('Click record error:', error);
+            }
+        }
+
+        async function recordClose(popupId, closeType) {
+            try {
+                await fetch(`/api/admin/popups/${popupId}/record/close?type=${closeType}`, {
+                    method: 'POST'
+                });
+            } catch (error) {
+                console.error('Close record error:', error);
+            }
+        }
+
+        // 이미지 팝업 관련 함수 추가
+        function showImagePopup(imageUrl) {
+            const popup = document.createElement('div');
+            popup.className = 'image-popup';
+            popup.innerHTML = `
+                <span class="close-btn" onclick="closeImagePopup(this)">&times;</span>
+                <img src="${imageUrl}" alt="팝업 이미지">
+            `;
+            document.body.appendChild(popup);
+            popup.style.display = 'flex';
+        }
+
+        function closeImagePopup(element) {
+            element.parentElement.remove();
+        }
+
+        // 이미지 로딩 에러 처리
+        function handleImageError(img) {
+            img.onerror = null; // 무한 루프 방지
+            img.src = '/path/to/fallback-image.jpg'; // 대체 이미지 경로
+            console.error('이미지 로딩 실패');
+        }
+
+        // 기존 함수들...
+        async function activatePopup(id) {
+            try {
+                await fetch(`/api/admin/popups/${id}/activate`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                location.reload();
+            } catch (error) {
+                alert('팝업 활성화 중 오류가 발생했습니다.');
+            }
+        }
+
+        async function deactivatePopup(id) {
+            try {
+                await fetch(`/api/admin/popups/${id}/deactivate`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                location.reload();
+            } catch (error) {
+                alert('팝업 비활성화 중 오류가 발생했습니다.');
+            }
+        }
+
+        async function previewPopup(id) {
+            try {
+                // 팝업 데이터 가져오기
+                const response = await fetch(`/api/popups/${id}`);
+                const popup = await response.json();
+
+                // 새 창으로 팝업 열기
+                const width = popup.width || 400;
+                const height = popup.height || 300;
+                const left = (window.screen.width - width) / 2;
+                const top = (window.screen.height - height) / 2;
+
+                const previewWindow = window.open(
+                    '',
+                    'popup_preview',
+                    `width=${width},height=${height},left=${left},top=${top},scrollbars=yes`
+                );
+
+                if (previewWindow) {
+                    // 팝업 내용 설정
+                    previewWindow.document.write(`
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>팝업 미리보기</title>
+                    <style>
+                        body {
+                            margin: 0;
+                            padding: 0;
+                            overflow: hidden;
+                            background-color: ${popup.backgroundColor || '#ffffff'};
+                            border: ${popup.borderStyle || '1px solid #000'};
+                        }
+                        .popup-content {
+                            width: 100%;
+                            height: 100%;
+                            padding: 15px;
+                            box-sizing: border-box;
+                        }
+                        img {
+                            max-width: 100%;
+                            height: auto;
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div class="popup-content">
+                        ${popup.imageUrl ? `<img src="${popup.imageUrl}" alt="${popup.altText || ''}" />` : ''}
+                        ${popup.content || ''}
+                    </div>
+                </body>
+                </html>
+            `);
+                    previewWindow.document.close();
+                    previewWindow.focus();
+                } else {
+                    alert('팝업 차단이 활성화되어 있습니다. 팝업 차단을 해제해주세요.');
+                }
+            } catch (error) {
+                console.error('미리보기 오류:', error);
+                alert('미리보기를 불러오는 중 오류가 발생했습니다.');
+            }
+        }
+
+        // showStatistics 함수 수정
+        async function showStatistics(id) {
+            try {
+                // 차트 초기화 먼저 수행
+                initializeCharts();
+
+                const response = await fetch(`/api/admin/popups/${id}/statistics`);
+                if (!response.ok) throw new Error('통계 데이터를 불러오는데 실패했습니다.');
+
+                const data = await response.json();
+                console.log('Statistics data:', data); // 데이터 확인용 로그
+
+                // 기본 통계 업데이트 전에 null 체크
+                if (data) {
+                    document.getElementById('stats-views').textContent = (data.totalViews || 0).toLocaleString();
+                    document.getElementById('stats-ctr').textContent = `${(data.ctr || 0).toFixed(1)}%`;
+                    document.getElementById('stats-duration').textContent = `${(data.avgDuration || 0).toFixed(1)}초`;
+
+                    // 디바이스 차트 데이터 업데이트
+                    if (charts.device) {
+                        const deviceData = [
+                            data.deviceStats?.DESKTOP || 0,
+                            data.deviceStats?.MOBILE || 0,
+                            data.deviceStats?.TABLET || 0
+                        ];
+
+                        charts.device.data.datasets[0].data = deviceData;
+                        charts.device.update('none'); // 애니메이션 없이 즉시 업데이트
+                    }
+
+                    // 종료 유형 차트 데이터 업데이트
+                    if (charts.close) {
+                        const closeData = [
+                            data.closeStats?.NORMAL || 0,
+                            data.closeStats?.AUTO || 0,
+                            data.closeStats?.TODAY || 0
+                        ];
+
+                        charts.close.data.datasets[0].data = closeData;
+                        charts.close.update('none'); // 애니메이션 없이 즉시 업데이트
+                    }
+                }
+
+                // 모달 표시
+                document.getElementById('statistics-modal').classList.remove('hidden');
+
+            } catch (error) {
+                console.error('Statistics error:', error);
+                alert('통계를 불러오는 중 오류가 발생했습니다.');
+            }
+        }
+
+        function closeStatisticsModal() {
+            document.getElementById('statistics-modal').classList.add('hidden');
+        }
+    </script>
+    <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
+</head>
+<body>
+<div layout:fragment="content">
+    <div class="container mx-auto px-4 py-8">
+        <!-- 상단 메뉴 -->
+        <div class="flex justify-between items-center mb-8">
+            <div>
+                <h1 class="text-3xl font-bold text-gray-900">팝업 관리</h1>
+                <p class="mt-2 text-gray-600">팝업을 생성하고 관리하세요</p>
+            </div>
+            <div class="space-x-3">
+                <a th:href="@{/adm/popups/templates}"
+                   class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700">
+                    <i class="fas fa-layer-group mr-2"></i>
+                    템플릿 관리
+                </a>
+            </div>
+        </div>
+
+        <!-- 데이터가 없을 때 표시될 빈 상태 -->
+        <div th:if="${#lists.isEmpty(popups)}" class="empty-state">
+            <div class="empty-state-icon">
+                <i class="far fa-window-maximize"></i>
+            </div>
+            <h3 class="text-lg font-medium text-gray-900 mb-2">등록된 팝업이 없습니다</h3>
+            <p class="text-gray-500 mb-4">
+                새로운 팝업을 생성하여 방문자들에게 중요한 정보를 전달하세요.
+            </p>
+            <a th:href="@{/adm/popups/create}" class="btn-primary">
+                <i class="fas fa-plus mr-2"></i>첫 팝업 만들기
+            </a>
+        </div>
+
+        <!-- 팝업 목록 (데이터가 있을 때) -->
+        <div th:if="${not #lists.isEmpty(popups)}" class="bg-white rounded-lg shadow-lg overflow-hidden">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                        제목/이미지
+                    </th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                        상태/기간
+                    </th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                        통계
+                    </th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                        관리
+                    </th>
+                </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200">
+                <tr th:each="popup : ${popups}" th:id="'popup-row-' + ${popup.id}">
+                    <td class="px-6 py-4">
+                        <div class="flex items-center">
+                            <img th:if="${popup.imageUrl}"
+                                 th:src="${popup.imageUrl}"
+                                 class="thumbnail"
+                                 th:data-image-url="${popup.imageUrl}"
+                                 onclick="showImagePopup(this.dataset.imageUrl)"
+                                 onerror="handleImageError(this)"
+                                 alt="팝업 이미지">
+                            <div>
+                                <div class="font-medium" th:text="${popup.title}"></div>
+                                <div class="text-sm text-gray-500">
+                                    <span th:text="${popup.deviceType}"></span>
+                                    <span th:if="${popup.repeatType != null}"
+                                          th:text="'(' + ${popup.repeatType} + ')'">
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="px-6 py-4">
+                        <div class="mb-2">
+                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full"
+                                          th:classappend="${popup.status == 'ACTIVE' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}"
+                                          th:text="${popup.status}">
+                                    </span>
+                            <button th:if="${popup.status == 'INACTIVE'}"
+                                    th:data-popup-id="${popup.id}"
+                                    onclick="'activatePopup(' + ${popup.id} + ')'"
+                                    class="ml-2 text-xs text-blue-600 hover:text-blue-900">
+                                활성화
+                            </button>
+                            <button th:if="${popup.status == 'ACTIVE'}"
+                                    th:onclick="'deactivatePopup(' + ${popup.id} + ')'"
+                                    class="ml-2 text-xs text-red-600 hover:text-red-900">
+                                비활성화
+                            </button>
+                        </div>
+                        <div class="text-sm text-gray-500">
+                            <div th:text="${#temporals.format(popup.startDateTime, 'yyyy-MM-dd HH:mm')}"></div>
+                            <div th:text="${#temporals.format(popup.endDateTime, 'yyyy-MM-dd HH:mm')}"></div>
+                        </div>
+                    </td>
+                    <td class="px-6 py-4">
+                        <div class="text-sm">
+                            <div>노출수: <span th:text="${popup.viewCount}"></span></div>
+                            <div>클릭률: <span th:text="${popup.viewCount > 0 ? #numbers.formatDecimal(popup.clickCount * 100.0 / popup.viewCount, 1, 2) : '0.00'}">%</span></div>
+                            <button class="text-blue-600 hover:text-blue-900 text-xs"
+                                    th:onclick="'showStatistics(' + ${popup.id} + ')'">
+                                상세 통계
+                            </button>
+                        </div>
+                    </td>
+                    <td class="px-6 py-4">
+                        <div class="space-y-2">
+                            <button class="block text-blue-600 hover:text-blue-900"
+                                    th:onclick="'previewPopup(' + ${popup.id} + ')'">
+                                미리보기
+                            </button>
+                            <form th:action="@{/adm/popups/edit/{id}(id=${popup.id})}" method="get" class="inline">
+                                <button type="submit" class="block text-blue-600 hover:text-blue-900">
+                                    수정
+                                </button>
+                            </form>
+                            <button class="block text-blue-600 hover:text-blue-900"
+                                    th:onclick="'clonePopup(' + ${popup.id} + ')'">
+                                <i class="fas fa-copy mr-1"></i>복제
+                            </button>
+                            <button class="block text-red-600 hover:text-red-900"
+                                    th:onclick="'deletePopup(' + ${popup.id} + ')'">
+                                삭제
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- 통계 모달 -->
+    <div id="statistics-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden z-50">
+        <div class="bg-white rounded-lg p-8 max-w-4xl mx-auto mt-20 relative">
+
+            <!-- 기본 통계 -->
+            <div class="grid grid-cols-3 gap-4 mb-8">
+                <div class="p-4 bg-gray-50 rounded-lg">
+                    <div class="text-sm text-gray-500">총 노출수</div>
+                    <div id="stats-views" class="text-2xl font-bold">0</div>
+                </div>
+                <div class="p-4 bg-gray-50 rounded-lg">
+                    <div class="text-sm text-gray-500">클릭률 (CTR)</div>
+                    <div id="stats-ctr" class="text-2xl font-bold">0%</div>
+                </div>
+                <div class="p-4 bg-gray-50 rounded-lg">
+                    <div class="text-sm text-gray-500">평균 노출 시간</div>
+                    <div id="stats-duration" class="text-2xl font-bold">0초</div>
+                </div>
+            </div>
+
+            <!-- 차트 컨테이너 -->
+            <div class="grid grid-cols-2 gap-8">
+                <div class="p-4 bg-white rounded-lg shadow">
+                    <h3 class="text-lg font-semibold mb-4">디바이스별 통계</h3>
+                    <div style="height: 300px; position: relative;">
+                        <canvas id="deviceChart"></canvas>
+                    </div>
+                </div>
+                <div class="p-4 bg-white rounded-lg shadow">
+                    <h3 class="text-lg font-semibold mb-4">종료 유형별 통계</h3>
+                    <div style="height: 300px; position: relative;">
+                        <canvas id="closeTypeChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 미리보기 팝업 -->
+    <div id="preview-popup" class="preview-popup">
+        <div class="preview-content"></div>
+    </div>
+</div>
+</body>
+</html>

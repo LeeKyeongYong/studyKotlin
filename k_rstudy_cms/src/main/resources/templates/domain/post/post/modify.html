@@ -1,0 +1,63 @@
+<html layout:decorate="~{global/usrLayout}">
+
+<head>
+    <title>글 수정</title>
+</head>
+
+<body>
+<div layout:fragment="content">
+    <h1>글 수정</h1>
+
+    <script>
+        function submitModifyForm(form) {
+            form.title.value = form.title.value.trim();
+
+            if (form.title.value.length == 0) {
+                toastWarning('제목을 입력해주세요.');
+                form.title.focus();
+                return;
+            }
+
+            form.body.value = form.body.value.trim();
+
+            if (form.body.value.length == 0) {
+                toastWarning('내용을 입력해주세요.');
+                form.body.focus();
+                return;
+            }
+
+            // 체크박스 상태를 숨겨진 필드로 설정하여 전송하도록 할 수 있습니다
+            var isPublished = form.isPublished.checked ? 'true' : 'false';
+            var hiddenInput = document.createElement('input');
+            hiddenInput.type = 'hidden';
+            hiddenInput.name = 'isPublished';
+            hiddenInput.value = isPublished;
+            form.appendChild(hiddenInput);
+
+            form.submit();
+        }
+    </script>
+
+    <form th:action method="POST" onsubmit="submitModifyForm(this); return false;">
+        <input type="hidden" name="_method" value="PUT">
+        <div>
+            <label>공개</label>
+            <input type="checkbox" name="isPublished" th:checked="${post.isPublished}">
+        </div>
+
+        <div>
+            <label>제목</label>
+            <input type="text" name="title" th:value="${post.title}">
+        </div>
+
+        <div>
+            <label>내용</label>
+            <textarea name="body" th:text="${post.body}"></textarea>
+        </div>
+
+        <button type="submit">글수정</button>
+    </form>
+</div>
+</body>
+
+</html>

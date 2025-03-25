@@ -1,0 +1,367 @@
+<html layout:decorate="~{global/usrLayout}">
+
+<head>
+    <title>홈</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+
+    <!-- 팝업 관련 JavaScript -->
+    <script layout:fragment="script" th:inline="javascript">
+        // 페이지 로드 시 실행될 초기화 함수
+        document.addEventListener('DOMContentLoaded', function() {
+            initializePopups();
+            incrementViewCount();
+            const modal = new bootstrap.Modal(document.getElementById('passwordChangeModal'));
+            modal.show();
+        });
+
+        async function changePassword() {
+            try {
+                const response = await fetch('/api/v1/members/password/auto-change', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    alert('비밀번호가 성공적으로 변경되었습니다. 새로운 비밀번호: ' + result.newPassword);
+                    location.reload();
+                } else {
+                    alert('비밀번호 변경에 실패했습니다.');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('비밀번호 변경 중 오류가 발생했습니다.');
+            }
+        }
+
+        // 팝업 초기화 함수
+        function initializePopups() {
+            document.querySelectorAll('.popup').forEach(popup => {
+                const header = popup.querySelector('.popup-header');
+                let isDragging = false;
+                let currentX;
+                let currentY;
+                let initialX;
+                let initialY;
+
+                // 드래그 시작
+                header.addEventListener('mousedown', function(e) {
+                    isDragging = true;
+                    const rect = popup.getBoundingClientRect();
+                    initialX = e.clientX - rect.left;
+                    initialY = e.clientY - rect.top;
+
+                    popup.style.cursor = 'grabbing';
+                    header.style.cursor = 'grabbing';
+                });
+
+                // 드래그 중
+                document.addEventListener('mousemove', function(e) {
+                    if (!isDragging) return;
+
+                    e.preventDefault();
+                    currentX = e.clientX - initialX;
+                    currentY = e.clientY - initialY;
+
+                    // 화면 경계 체크
+                    currentX = Math.max(0, Math.min(currentX, window.innerWidth - popup.offsetWidth));
+                    currentY = Math.max(0, Math.min(currentY, window.innerHeight - popup.offsetHeight));
+
+                    popup.style.left = currentX + 'px';
+                    popup.style.top = currentY + 'px';
+                });
+
+                // 드래그 종료
+                document.addEventListener('mouseup', function() {
+                    if (isDragging) {
+                        isDragging = false;
+                        popup.style.cursor = 'default';
+                        header.style.cursor = 'grab';
+                    }
+                });
+
+                // 초기 커서 스타일 설정
+                header.style.cursor = 'grab';
+            });
+        }
+
+        // 조회수 증가
+        async function incrementViewCount() {
+            const popups = document.querySelectorAll('.popup');
+            for (const popup of popups) {
+                const popupId = popup.id.split('-')[1];
+                if (!isPopupHidden(popupId)) {
+                    try {
+                        await fetch(`/api/popups/${popupId}/view`, {
+                            method: 'POST'
+                        });
+                    } catch (error) {
+                        console.error('조회수 증가 실패:', error);
+                    }
+                }
+            }
+        }
+
+        // 클릭수 증가
+        async function incrementClickCount(popupId) {
+            try {
+                await fetch(`/api/popups/${popupId}/click`, {
+                    method: 'POST'
+                });
+            } catch (error) {
+                console.error('클릭수 증가 실패:', error);
+            }
+        }
+
+        // 팝업 닫기
+        function closePopup(popupId) {
+            const popup = document.getElementById(`popup-${popupId}`);
+            if (popup) {
+                popup.style.display = 'none';
+            }
+        }
+
+        // 팝업 숨기기 설정
+        function setHidePopup(popupId, days) {
+            const expireDate = new Date();
+            expireDate.setDate(expireDate.getDate() + days);
+            document.cookie = `popup_${popupId}=hidden; expires=${expireDate.toUTCString()}; path=/`;
+            closePopup(popupId);
+        }
+
+        // 팝업 숨김 여부 확인
+        function isPopupHidden(popupId) {
+            const cookies = document.cookie.split(';');
+            for (const cookie of cookies) {
+                const [name, value] = cookie.trim().split('=');
+                if (name === `popup_${popupId}` && value === 'hidden') {
+                    return true;
+                }
+            }
+            return false;
+        }
+    </script>
+
+    <style>
+        .banner-slider {
+            width: 100%;
+            margin: 20px 0;
+        }
+        .banner-container {
+            position: relative;
+            width: 100%;
+        }
+        .banner-slides {
+            display: flex;
+            transition: transform 0.5s ease;
+        }
+        .banner-slide {
+            width: 100%;
+            flex-shrink: 0;
+        }
+
+        /* 팝업 스타일 */
+        .popup {
+            position: fixed;
+            z-index: 1000;
+            background: #fff;
+            box-shadow: 0 0 10px rgba(0,0,0,0.2);
+            border-radius: 8px;
+            overflow: hidden;
+            user-select: none; /* 드래그 중 텍스트 선택 방지 */
+        }
+
+        .popup-header {
+            padding: 10px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #dee2e6;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            touch-action: none; /* 모바일에서 드래그 개선 */
+        }
+
+        .popup-content {
+            position: relative;
+            overflow: auto;
+            max-height: calc(100% - 100px); /* 헤더와 푸터 고려 */
+        }
+
+        .popup-image {
+            display: block;
+            max-width: 100%;
+            height: auto;
+        }
+
+        .popup-footer {
+            padding: 8px;
+            background: #f8f9fa;
+            border-top: 1px solid #dee2e6;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.875rem;
+        }
+
+        .popup-close {
+            cursor: pointer;
+            padding: 4px 8px;
+            background: none;
+            border: none;
+            font-size: 1.25rem;
+            color: #666;
+            transition: color 0.2s;
+        }
+
+        .popup-close:hover {
+            color: #000;
+        }
+
+        .hide-popup {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .hide-popup label {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            cursor: pointer;
+        }
+
+        .hide-popup input[type="checkbox"] {
+            cursor: pointer;
+        }
+
+        /* 페이드 효과 */
+        .popup-preview.fade {
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        /* 슬라이드 효과 */
+        .popup-preview.slide {
+            transform: translateY(-20px);
+            opacity: 0;
+            transition: all 0.3s ease;
+        }
+        .popup-preview.slide.active {
+            transform: translateY(0);
+            opacity: 1;
+        }
+
+        /* 바운스 효과 */
+        .popup-preview.bounce {
+            animation: bounceIn 0.5s cubic-bezier(0.36, 0, 0.66, -0.56);
+        }
+
+        @keyframes bounceIn {
+            0% {
+                transform: scale(0.3);
+                opacity: 0;
+            }
+            50% {
+                transform: scale(1.05);
+                opacity: 0.8;
+            }
+            70% { transform: scale(0.9); }
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+    </style>
+</head>
+
+<div layout:fragment="content">
+    <th:block th:each="popup : ${popups}">
+        <div th:id="'popup-' + ${popup.id}"
+             class="popup"
+             th:style="'width:' + ${popup.width} + 'px; height:' + ${popup.height} + 'px; left:' + ${popup.positionX} + 'px; top:' + ${popup.positionY} + 'px;'">
+
+            <div class="popup-header">
+                <span th:text="${popup.title}">팝업 제목</span>
+                <button class="popup-close" th:onclick="'closePopup(' + ${popup.id} + ')'">×</button>
+            </div>
+
+            <div class="popup-content">
+                <a th:if="${popup.linkUrl}"
+                   th:href="${popup.linkUrl}"
+                   th:target="${popup.target == 'BLANK' ? '_blank' : '_self'}"
+                   th:onclick="'incrementClickCount(' + ${popup.id} + ')'">
+                    <div th:if="${popup.imageUrl == null}"
+                         class="p-4"
+                         th:text="${popup.content}">
+                    </div>
+                    <div th:if="${popup.imageUrl != null}">
+                        <img th:src="${popup.imageUrl}"
+                             th:alt="${popup.altText}"
+                             class="popup-image">
+                    </div>
+                </a>
+                <div th:unless="${popup.linkUrl}">
+                    <div th:if="${popup.imageUrl == null}"
+                         class="p-4"
+                         th:text="${popup.content}">
+                    </div>
+                    <div th:if="${popup.imageUrl != null}">
+                        <img th:src="${popup.imageUrl}"
+                             th:alt="${popup.altText}"
+                             class="popup-image">
+                    </div>
+                </div>
+            </div>
+
+            <div class="popup-footer">
+                <div class="hide-popup">
+                    <label th:if="${popup.hideForToday}">
+                        <input type="checkbox" th:onclick="'setHidePopup(' + ${popup.id} + ', 1)'">
+                        오늘 하루 보지 않기
+                    </label>
+                    <label th:if="${popup.hideForWeek}">
+                        <input type="checkbox" th:onclick="'setHidePopup(' + ${popup.id} + ', 7)'">
+                        일주일 동안 보지 않기
+                    </label>
+                </div>
+            </div>
+        </div>
+    </th:block>
+
+    <h1>메인</h1>
+
+    <div th:if="${passwordChangeAlert}" class="modal fade" id="passwordChangeModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">비밀번호 변경 안내</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>보안을 위해 3개월마다 비밀번호를 변경하는 것을 권장합니다.</p>
+                    <p>마지막 변경일: <span th:text="${#temporals.format(passwordChangeAlert.lastPasswordChangeDate, 'yyyy-MM-dd')}"></span></p>
+                    <p>다음 변경 예정일: <span th:text="${#temporals.format(passwordChangeAlert.nextChangeDate, 'yyyy-MM-dd')}"></span></p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">나중에</button>
+                    <button type="button" class="btn btn-primary" onclick="changePassword()">비밀번호 변경</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 배너 슬라이드 -->
+    <div th:replace="~{global/fragments/banner :: bannerSlide}"></div>
+
+    <h2>최신 게시물</h2>
+
+    <ul>
+        <li th:each="post : ${posts}">
+            <a th:href="|/post/${post.id}|" th:text="${post.title}"></a>
+        </li>
+    </ul>
+</div>
+
+</html>

@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html layout:decorate="~{global/msgLayout}">
+<head>
+    <title>메시지 상세보기</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+    <style>
+        .message-detail-container {
+            max-width: 800px;
+            margin: 2rem auto;
+            padding: 2rem;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            background-color: #fff;
+        }
+        .message-header {
+            border-bottom: 1px solid #dee2e6;
+            padding-bottom: 1rem;
+            margin-bottom: 1rem;
+        }
+        .message-meta {
+            color: #6c757d;
+            font-size: 0.9rem;
+        }
+        .message-content {
+            margin: 2rem 0;
+            white-space: pre-wrap;
+        }
+        .go-back {
+            margin-top: 2rem;
+        }
+        .recipient-list {
+            list-style-type: none;
+            padding-left: 0;
+        }
+        .recipient-item {
+            margin-bottom: 0.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .read-status {
+            margin-left: 0.5rem;
+        }
+        .read {
+            color: #28a745;
+        }
+        .unread {
+            color: #dc3545;
+        }
+    </style>
+</head>
+<body>
+<div layout:fragment="content">
+    <div class="message-detail-container">
+        <div class="message-header">
+            <h2 th:text="${message.title}">메시지 제목</h2>
+            <div class="message-meta">
+                <div>
+                    <strong>보내는 사람:</strong>
+                    <span th:text="${sender.username} + ' (' + ${sender.userid} + ')'">보내는 사람 이름 (ID)</span>
+                </div>
+                <div>
+                    <strong>받는 사람 ([[${message.recipients.size()}]]):</strong>
+                    <ul class="recipient-list">
+                        <li th:each="recipient : ${message.recipients}" class="recipient-item">
+                            <span th:text="${recipient.recipientName + ' (' + recipient.recipientUserId + ')'}">
+                                받는 사람 이름 (ID)
+                            </span>
+                            <span class="read-status" th:classappend="${recipient.readAt != null ? 'read' : 'unread'}">
+                                <i class="fas" th:classappend="${recipient.readAt != null ? 'fa-check-circle' : 'fa-circle'}"
+                                   th:title="${recipient.readAt != null ? '읽음 - ' + #temporals.format(recipient.readAt, 'yyyy-MM-dd HH:mm:ss') : '안읽음'}"></i>
+                            </span>
+                        </li>
+                    </ul>
+                </div>
+                <div>
+                    <strong>보낸 시간:</strong>
+                    <span th:text="${#temporals.format(message.sentAt, 'yyyy-MM-dd HH:mm:ss')}">보낸 시간</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="message-content" th:text="${message.content}">
+            메시지 내용
+        </div>
+
+        <div class="go-back">
+            <a href="/messages" class="btn btn-secondary">목록으로 돌아가기</a>
+        </div>
+    </div>
+</div>
+</body>
+</html>

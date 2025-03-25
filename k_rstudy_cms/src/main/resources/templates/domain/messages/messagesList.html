@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html layout:decorate="~{global/msgLayout}">
+<head>
+    <title>메세지 리스트</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .message-card {
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 5px;
+        }
+        .message-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+        .unread-badge {
+            background-color: #007bff;
+            color: white;
+            padding: 2px 5px;
+            border-radius: 3px;
+            font-size: 0.8em;
+        }
+        .timestamp {
+            color: #6c757d;
+        }
+        .message-content {
+            margin-bottom: 10px;
+        }
+        .recipient-list {
+            font-style: italic;
+            color: #6c757d;
+        }
+        .search-container {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .search-type {
+            width: auto;
+        }
+        /* 페이징 스타일 추가 */
+        .pagination .page-item {
+            margin: 0 2px;
+        }
+        .pagination .page-link {
+            padding: 0.5rem 1rem;
+        }
+        .pagination .page-item.active .page-link {
+            background-color: #007bff;
+            border-color: #007bff;
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+<!--    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>-->
+    <script>
+        $(document).ready(function() {
+            console.log("Document is ready");
+            initializePage();
+        });
+
+        function initializePage() {
+            console.log("Initializing page");
+            fetchMessages(1);
+
+            $('#searchForm').on('submit', function(event) {
+                event.preventDefault();
+                console.log("Search form submitted");
+                fetchMessages(1);
+            });
+        }
+
+        function fetchMessages(page) {
+            const search = $('#searchInput').val() || '';
+            const searchType = $('select[name="searchType"]').val() || 'all';
+
+            const token = $("meta[name='_csrf']").attr("content");
+            const header = $("meta[name='_csrf_header']").attr("content");
+
+            console.log("Fetching messages", {page, search, searchType});
+
+            $.ajax({
+                url: `/api/messages`,
+                method: 'GET',
+                data: {
+                    page: page,
+                    size: 10,
+                    search: search,
+                    searchType: searchType
+                },
+                beforeSend: function(xhr) {
+                    xhr.setRequestHeader(header, token);
+                },
+                success: function(data) {
+                    console.log("Received data:", data);
+                    updatePage(data);
+                },
+                error: function(error) {
+                    console.error('Fetch error:', error);
+                    toastr.error('메시지를 불러오는 중 오류가 발생했습니다.');
+                    // 에러 발생 시에도 기본 페이징 표시
+                    updatePage({
+                        totalItems: 0,
+                        messages: [],
+                        totalPages: 1,  // 1로 설정
+                        currentPage: 1
+                    });
+                }
+            });
+        }
+
+        function updatePage(data) {
+            updateMessageList(data);
+            updatePagination(data);
+        }
+
+        function updateMessageList(data) {
+            const messageContainer = $('.message-list-container');
+            messageContainer.empty();
+
+            if (!data.messages || data.messages.length === 0) {
+                messageContainer.html('<div class="alert alert-info">메시지가 없습니다.</div>');
+                return;
+            }
+
+            data.messages.forEach(message => {
+                const truncatedContent = message.content.length > 30 ? message.content.substring(0, 30) + '...' : message.content;
+
+                const messageCard = `
+            <div class="message-card">
+                <div class="message-header">
+                    <div>
+                        <a href="/messages/${message.id}" class="text-decoration-none">
+                            <strong>${message.title}</strong>
+                        </a>
+                        ${message.readAt == null ? '<span class="unread-badge ms-2">읽지 않음</span>' : '<span class="read-badge ms-2">읽음</span>'}
+                    </div>
+                    <span class="timestamp">${new Date(message.sentAt).toLocaleString()}</span>
+                </div>
+                <div class="message-content">${truncatedContent}</div>
+                <div class="recipient-list">
+                    <small>수신자: ${message.recipients.map(recipient => recipient.recipientName).join(', ')}</small>
+                </div>
+            </div>
+        `;
+                messageContainer.append(messageCard);
+            });
+        }
+
+        function updatePagination(data) {
+            const $pagination = $('#messagePagination');
+            $pagination.empty();
+
+            const totalPages = data.totalPages || 1;
+            const currentPage = data.currentPage || 1;
+
+            // Previous 버튼
+            $pagination.append(`
+        <li class="page-item ${currentPage === 1 ? 'disabled' : ''}">
+            <a class="page-link" href="#" ${currentPage !== 1 ? `onclick="fetchMessages(${currentPage - 1})"` : ''} aria-label="Previous">
+                <span aria-hidden="true">&laquo;</span>
+            </a>
+        </li>
+    `);
+
+            // 페이지 번호
+            for (let i = 1; i <= totalPages; i++) {
+                if (
+                    i === 1 || // 첫 페이지
+                    i === totalPages || // 마지막 페이지
+                    (i >= currentPage - 2 && i <= currentPage + 2) // 현재 페이지 주변 +-2
+                ) {
+                    const $pageItem = $('<li>').addClass(`page-item ${i === currentPage ? 'active' : ''}`);
+                    const $pageLink = $('<a>')
+                        .addClass('page-link')
+                        .attr('href', '#')
+                        .text(i)
+                        .on('click', function(e) {
+                            e.preventDefault();
+                            fetchMessages(i);
+                        });
+
+                    $pageItem.append($pageLink);
+                    $pagination.append($pageItem);
+                } else if (
+                    i === currentPage - 3 || // 현재 페이지 앞의 생략
+                    i === currentPage + 3 // 현재 페이지 뒤의 생략
+                ) {
+                    $pagination.append(`
+                <li class="page-item disabled">
+                    <a class="page-link" href="#">...</a>
+                </li>
+            `);
+                }
+            }
+
+            // Next 버튼
+            $pagination.append(`
+        <li class="page-item ${currentPage === totalPages ? 'disabled' : ''}">
+            <a class="page-link" href="#" ${currentPage !== totalPages ? `onclick="fetchMessages(${currentPage + 1})"` : ''} aria-label="Next">
+                <span aria-hidden="true">&raquo;</span>
+            </a>
+        </li>
+    `);
+        }
+
+        function resetSearch() {
+            $('#searchInput').val('');
+            $('select[name="searchType"]').val('all');
+            fetchMessages(1);
+        }
+    </script>
+
+</head>
+
+<body>
+<div layout:fragment="content">
+    <div class="container">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2>보낸 메세지 함</h2>
+        </div>
+
+        <!-- 검색 폼 -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <form id="searchForm" class="search-container">
+                    <select name="searchType" class="form-select search-type">
+                        <option value="all">전체검색</option>
+                        <option value="name">이름</option>
+                        <option value="team">팀</option>
+                        <option value="department">부서</option>
+                    </select>
+                    <input type="text" id="searchInput" name="search" class="form-control" placeholder="메시지 검색...">
+                    <button type="submit" class="btn btn-outline-primary">검색</button>
+                    <button type="button" class="btn btn-warning" onclick="resetSearch()">초기화</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- 메시지 목록 컨테이너 -->
+        <div class="message-list-container">
+            <!-- 메시지 카드들이 여기에 동적으로 추가됩니다 -->
+        </div>
+
+        <!-- 페이징 -->
+        <nav aria-label="Page navigation" class="mt-4">
+            <ul id="messagePagination" class="pagination justify-content-center">
+                <!-- 페이징 버튼들이 여기에 동적으로 추가됩니다 -->
+            </ul>
+        </nav>
+    </div>
+</div>
+</body>
+</html>
