@@ -33,6 +33,9 @@ dependencies {
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit5")
     testImplementation("org.junit.jupiter:junit-jupiter:5.10.0")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+
+    testImplementation("io.kotest:kotest-assertions-core:5.8.0")
+    testImplementation("org.assertj:assertj-core:3.25.3")
 }
 
 kotlin {
