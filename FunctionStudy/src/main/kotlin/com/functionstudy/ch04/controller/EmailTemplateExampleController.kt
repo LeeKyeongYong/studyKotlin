@@ -16,7 +16,7 @@ class EmailTemplateExampleController {
         val expectedEmail = "Hello, John! Welcome aboard."
 
         expectThat(personalizedEmail).isEqualTo(expectedEmail)
-     
+
         println("이메일 템플릿이 예상과 일치합니다!")
     }
 }
