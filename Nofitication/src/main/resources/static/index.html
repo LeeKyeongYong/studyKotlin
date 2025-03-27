@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SSE Test</title>
+</head>
+<body>
+<h1>SSE Test</h1>
+<ul id="notifications"></ul>
+<script>
+    const eventSource = new EventSource("http://localhost:8080/notifications");
+
+    eventSource.onopen = () => {
+        console.log("Connected to SSE");
+    };
+
+    eventSource.onmessage = (event) => {
+        console.log("Message received:", event.data);
+        const listItem = document.createElement("li");
+        listItem.textContent = event.data;
+        document.getElementById("notifications").appendChild(listItem);
+    };
+
+    eventSource.onerror = (err) => {
+        console.error("SSE connection error:", err);
+    };
+</script>
+</body>
+</html>
